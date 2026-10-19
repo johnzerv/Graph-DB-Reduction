@@ -1,6 +1,9 @@
+from graph import GraphDB
+
 class Reducer:
-    def __init__(self, num_graphs, retain_percentage=0.7):
-        self.num_graphs = num_graphs
+    def __init__(self, graphDB: GraphDB, retain_percentage=0.7):
+        self.graphDB = graphDB
+        self.num_graphs = graphDB.num_graphs
         self.retain_percentage = retain_percentage
         
     def reduce(self, **kwargs):
@@ -10,10 +13,11 @@ class BaselineReducer(Reducer):
     """
     A simple scoring system to rank graphs based on query results.
     """
-    def __init__(self, num_graphs, **kwargs):
-        super().__init__(num_graphs, **kwargs)
+    def __init__(self, graphDB: GraphDB, **kwargs):
+        super().__init__(graphDB, **kwargs)
+
         # Initialize all graphs with a score of 0
-        self.graph_scores = {i: 0 for i in range(num_graphs)}
+        self.graph_scores = {i: 0 for i in range(self.num_graphs)}
 
     def calculate_scores(self, match_results):
         """Calculates scores based on match results (2 points for FULL matches, 1 point for PARTIAL matches)"""
@@ -57,4 +61,4 @@ class BaselineReducer(Reducer):
         print(f"Retained {len(retained_graph_indices)} graphs: {retained_graph_indices}")
         print(f"Removed {len(removed_graph_indices)} lowest-scoring graphs: {removed_graph_indices}")
         
-        return retained_graph_indices, removed_graph_indices
+        return self.graphDB.reduce(retained_graph_indices)

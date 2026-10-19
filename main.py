@@ -1,6 +1,7 @@
 import argparse
+from pathlib import Path
 
-from graph import Graph
+from graph import Graph, GraphDB
 from query_engine import QueryEngine
 from reducer import BaselineReducer
 from visualizers import visualize_query_graph_relations
@@ -15,31 +16,41 @@ parser.add_argument("--group-number", default="13", help="group number used in d
 args = parser.parse_args()
 
 # Load the graph database and query log
-graph_config = Graph(
+graphDB = GraphDB(
     num_graphs=args.num_graphs,
     num_queries=args.num_queries,
     group_number=args.group_number,
-    query_mode=args.query_mode
+    query_mode=args.query_mode,
+    dataset_dir=Path("datasets"),
+    database_file=Path(f"datasets/Database{args.group_number}_{args.num_graphs}.txt"),
+    log_file=Path(f"datasets/QLog{args.group_number}_{args.num_graphs}_{args.num_queries}_{args.query_mode}.txt")
 )
 
 # Execute all queries to obtain the query answers
-engine = QueryEngine(graph_config.database_file, graph_config.log_file)
-match_results = engine.run()
+engine = QueryEngine(graphDB.database_file, graphDB.log_file)
+query_answers = engine.run()
 
 # Use the baseline reducer (score system) to create a ranking of graphs based on the query results
-baseline_reducer = BaselineReducer(num_graphs=len(engine.graphs))
-graph_scores = baseline_reducer.calculate_scores(match_results)
+baseline_reducer = BaselineReducer(graphDB=graphDB)
+graph_scores = baseline_reducer.calculate_scores(query_answers)
 
 # Visualize the query-graph relationships
 visualize_query_graph_relations(
     queries=engine.queries, 
     num_graphs=len(engine.graphs), 
-    match_results=match_results, 
+    match_results=query_answers, 
     graph_scores=graph_scores,
-    output_file=f"query_relations_G{graph_config.group_number}_{graph_config.num_graphs}_{graph_config.query_mode}.html"
+    output_file=f"query_relations_G{graphDB.group_number}_{graphDB.num_graphs}_{graphDB.query_mode}.html"
 )
-
 
 baseline_reducer.print_ranking()
 
-retained_graphs, removed_graphs = baseline_reducer.reduce()
+reduced_graphDB = baseline_reducer.reduce()
+
+engine = QueryEngine(reduced_graphDB.database_file, graphDB.log_file)
+query_answers = engine.run()
+
+baseline_reducer = BaselineReducer(graphDB=reduced_graphDB)
+graph_scores = baseline_reducer.calculate_scores(query_answers)
+baseline_reducer.print_ranking()
+
