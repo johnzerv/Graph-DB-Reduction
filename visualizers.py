@@ -27,7 +27,7 @@ def visualize_query_graph_relations(queries, num_graphs, match_results, graph_sc
         spring_strength=0.08,
     )
 
-    # 1. Add Query Nodes
+    # Add query nodes
     for q_idx, q_paths in enumerate(queries):
         hover_text = f"<b>Query {q_idx}</b><br>" + "<br>".join(q_paths)
         net.add_node(
@@ -38,7 +38,7 @@ def visualize_query_graph_relations(queries, num_graphs, match_results, graph_sc
             color="#a8d08d"
         )
 
-    # 2. Add Graph Nodes
+    # Add graph nodes
     for g_idx in range(num_graphs):
         score = graph_scores.get(g_idx, 0)
         hover_text = f"<b>Graph {g_idx}</b><br>Importance Score: {score}"
@@ -50,7 +50,7 @@ def visualize_query_graph_relations(queries, num_graphs, match_results, graph_sc
             color="#9bc2e6"
         )
 
-    # 3. Add Edges based on match_results
+    # Add edges based on match_results
     for (q_idx, g_idx), match_type in match_results.items():
         if match_type == 'FULL':
             net.add_edge(f"Q{q_idx}", f"G{g_idx}", color="#2e7d32", width=3, title="FULL Match")
@@ -64,9 +64,7 @@ def visualize_query_graph_relations(queries, num_graphs, match_results, graph_sc
     print(f"Opening visualization in your browser: {out_path}")
 
 
-# -------------------------------------------------------------------------
-# Matplotlib / NetworkX Visualization Functions
-# -------------------------------------------------------------------------
+# Matplotlib and NetworkX visualization functions
 
 def parse_graph_line(line, attributes):
     """Parses a single graph line into a NetworkX MultiGraph."""
@@ -152,9 +150,7 @@ def visualize_database_matplotlib(database_file, attributes):
         print(f"Could not find {database_file}. Make sure you ran the generator script first!")
 
 
-# -------------------------------------------------------------------------
-# PyVis / HTML Visualization Functions
-# -------------------------------------------------------------------------
+# PyVis and HTML visualization functions
 
 def visualize_graph_html(line, graph_index, attributes):
     """Draws a single graph line into an interactive HTML file using PyVis."""

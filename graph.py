@@ -3,7 +3,6 @@ import re
 import argparse
 from pathlib import Path
 
-# Import your newly extracted methods
 from visualizers import visualize_database_matplotlib, visualize_database_html
 
 class Graph:
@@ -12,8 +11,9 @@ class Graph:
 
     def __init__(self, num_graphs=10, num_queries=20, group_number="13", query_mode="skewed", hot_ratio=0.3):
         self.group_number = group_number
-        self.database_file = f"Database{group_number}_{num_graphs}.txt"
-        self.log_file = f"QLog{group_number}_{num_queries}_{query_mode}.txt"
+        self.dataset_dir = Path("datasets")
+        self.database_file = self.dataset_dir / f"Database{group_number}_{num_graphs}.txt"
+        self.log_file = self.dataset_dir / f"QLog{group_number}_{num_graphs}_{num_queries}_{query_mode}.txt"
 
         # Graph generation parameters
         self.num_graphs = num_graphs
@@ -89,6 +89,7 @@ class Graph:
 
     def generate_database(self):
         print(f"Generating {self.num_graphs} graphs for {self.database_file}...")
+        self.dataset_dir.mkdir(parents=True, exist_ok=True)
 
         all_edges = []
         all_attrs = []
@@ -132,8 +133,9 @@ class Graph:
             all_edges, all_attrs = self.load_database_data()
 
         query_mode = query_mode or self.query_mode
-        log_file = f"QLog{self.group_number}_{self.num_queries}_{query_mode}.txt"
+        log_file = self.dataset_dir / f"QLog{self.group_number}_{self.num_graphs}_{self.num_queries}_{query_mode}.txt"
         print(f"Generating {self.num_queries} queries for {log_file}...")
+        self.dataset_dir.mkdir(parents=True, exist_ok=True)
 
         query_targets = []
         if query_mode == "uniform":
@@ -187,7 +189,7 @@ if __name__ == "__main__":
 
     query_modes = ("uniform", "skewed") if args.query_mode == "both" else (args.query_mode,)
     for query_mode in query_modes:
-        query_file = Path(f"QLog{graph.group_number}_{graph.num_queries}_{query_mode}.txt")
+        query_file = graph.dataset_dir / f"QLog{graph.group_number}_{graph.num_queries}_{query_mode}.txt"
         if args.regenerate or not query_file.exists():
             graph.generate_queries(all_edges, all_attrs, query_mode)
 
