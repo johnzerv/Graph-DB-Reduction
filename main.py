@@ -41,3 +41,5 @@ visualize_query_graph_relations(
 
 
 baseline_reducer.print_ranking()
+
+retained_graphs, removed_graphs = baseline_reducer.reduce()
