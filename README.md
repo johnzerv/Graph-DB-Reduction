@@ -2,7 +2,7 @@
 
 This project investigates graph database reduction techniques to improve query processing efficiency while preserving relevant results. It generates synthetic graph datasets and query logs to evaluate query matching, and different reduction methods based on recall evaluation.
 
-## Project files
+### Project files
 
 - `graph.py` class definitions and implementations for representing graphs and graph databases. Includes also a synthetic graph database and query-set generator. Generates a pair of graph database and query-set based on user-defined specifications.
 - `query_engine.py` Implementation of the query engine. Parses a graph database and a query log and evaluates queries (path matching) classifying graph matches as `FULL`, `PARTIAL`, or `NONE`.
@@ -13,7 +13,7 @@ This project investigates graph database reduction techniques to improve query p
 - `datasets/` contains generated datasets; `visualizations/` contains HTML output.
 - `requirements.txt` lists the Python dependencies; `Makefile` provides a cleanup target.
 
-## Set up
+### Set up
 
 From the project directory, create and activate a virtual environment:
 
@@ -38,7 +38,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-## Generate the database and query logs
+### Generate the database and query logs
 
 Generate a 10-graph database along with 50 queries and both query modes without opening a graph viewer:
 
@@ -63,7 +63,7 @@ Regarding query-set generation, two approaches are adopted:
 - Uniform distribution: Queries are generated to distribute matches relatively evenly across the graphs in the database.
 - Skewed distribution: Queries are generated so that matches are concentrated on a subset of graphs (which consists of so-called "hot-graphs"), while other receieve fewer matches (cold-graphs).
 
-## Run the evaluation
+### Run the evaluation
 
 `main.py` expects the database and matching query log to exist already; it does not generate them. For the checked-in 10-graph, 50-query sample data, run:
 
@@ -77,7 +77,7 @@ The query engine is used by `main.py`; `query_engine.py` does not provide a stan
 
 The evaluation prints full and partial matches, ranks graphs, then reduces the database to 70% of its graphs (7 of 10 with the sample size). It writes the reduced database to a separate file such as `datasets/Database13_7.txt`, leaving the original database file in place. It also reports per-query, macro, and micro recall and writes the query-to-graph HTML view to `visualizations/`.
 
-## Visualize the database
+### Visualize the database
 
 Launch the interactive HTML graph selector:
 
@@ -93,10 +93,16 @@ python graph.py -v python
 
 Enter a graph number when prompted, or `q` to quit. HTML output is written to `visualizations/`.
 
-## Clean generated data
+### Clean generated data
 
 ```sh
 make clean
 ```
 
 This removes the `datasets/` and `visualizations/` directory contents (graph databases, query sets, graph visualizations).
+
+## TODOS:
+1. Work queries (paths) that include variables (e.g., X.knows.Y). This should also increase partial matches. We need to understand how we can modelize graphs with such queries.
+2. Create the deliverable dataset. Maybe one more distribution?
+3. Implement other than only the baseline reduction strategies.
+4. Move to PySpark.
