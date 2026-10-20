@@ -198,8 +198,9 @@ class GraphGenerator:
                 nodes_set = set()
                 edges_raw = []
                 attrs_raw = []
+                triples = re.findall(r"<(>*?>)", line)
                 
-                for triple in re.findall(r"<(.*?)>", line):
+                for triple in triples:
                     parts = [part.strip() for part in triple.split(",")]
                     if len(parts) != 3:
                         continue
@@ -214,7 +215,7 @@ class GraphGenerator:
                         nodes_set.add(int(obj))
 
                 nodes = list(nodes_set)
-                self.db.graphs.append(Graph(nodes=nodes, edges=edges_raw, attributes=attrs_raw))
+                self.db.graphs.append(Graph(nodes=nodes, edges=edges_raw, attributes=attrs_raw, triples=triples))
 
         return self.db
 
