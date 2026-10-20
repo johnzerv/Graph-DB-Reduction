@@ -1,0 +1,164 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 800px;
+                 background-color: #ffffff;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#a8d08d", "font": {"color": "black"}, "id": "Q0", "label": "Q0", "shape": "box", "title": "\u003cb\u003eQuery 0\u003c/b\u003e\u003cbr\u003e1.envies.4.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q1", "label": "Q1", "shape": "box", "title": "\u003cb\u003eQuery 1\u003c/b\u003e\u003cbr\u003e5.loves.8.department.AI\u003cbr\u003e2.envies.3.gender.female"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q2", "label": "Q2", "shape": "box", "title": "\u003cb\u003eQuery 2\u003c/b\u003e\u003cbr\u003e1.hates.5.department.CS\u003cbr\u003e2.hates.3.city.Amsterdam\u003cbr\u003e2.loves.4.gender.non-binary"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q3", "label": "Q3", "shape": "box", "title": "\u003cb\u003eQuery 3\u003c/b\u003e\u003cbr\u003e1.hates.8.department.AI\u003cbr\u003e3.knows.12.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q4", "label": "Q4", "shape": "box", "title": "\u003cb\u003eQuery 4\u003c/b\u003e\u003cbr\u003e13.knows.15.city.Rotterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q5", "label": "Q5", "shape": "box", "title": "\u003cb\u003eQuery 5\u003c/b\u003e\u003cbr\u003e2.hates.3.department.DS\u003cbr\u003e2.loves.4.gender.non-binary\u003cbr\u003e1.envies.2.gender.female"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q6", "label": "Q6", "shape": "box", "title": "\u003cb\u003eQuery 6\u003c/b\u003e\u003cbr\u003e1.loves.4.gender.non-binary\u003cbr\u003e1.envies.2.gender.female\u003cbr\u003e1.loves.4.age.\"35\""}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q7", "label": "Q7", "shape": "box", "title": "\u003cb\u003eQuery 7\u003c/b\u003e\u003cbr\u003e4.knows.9.age.\"35\"\u003cbr\u003e4.knows.9.age.\"35\""}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q8", "label": "Q8", "shape": "box", "title": "\u003cb\u003eQuery 8\u003c/b\u003e\u003cbr\u003e4.likes.5.city.Amsterdam\u003cbr\u003e2.knows.5.city.Amsterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q9", "label": "Q9", "shape": "box", "title": "\u003cb\u003eQuery 9\u003c/b\u003e\u003cbr\u003e3.hates.9.gender.male\u003cbr\u003e13.knows.15.city.Rotterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q10", "label": "Q10", "shape": "box", "title": "\u003cb\u003eQuery 10\u003c/b\u003e\u003cbr\u003e1.hates.5.department.CS\u003cbr\u003e2.hates.3.city.Amsterdam\u003cbr\u003e2.hates.3.department.DS"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q11", "label": "Q11", "shape": "box", "title": "\u003cb\u003eQuery 11\u003c/b\u003e\u003cbr\u003e2.loves.4.age.\"35\"\u003cbr\u003e2.loves.4.gender.non-binary\u003cbr\u003e1.envies.2.department.CS"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q12", "label": "Q12", "shape": "box", "title": "\u003cb\u003eQuery 12\u003c/b\u003e\u003cbr\u003e2.loves.4.gender.non-binary\u003cbr\u003e1.loves.4.gender.non-binary"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q13", "label": "Q13", "shape": "box", "title": "\u003cb\u003eQuery 13\u003c/b\u003e\u003cbr\u003e1.hates.8.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q14", "label": "Q14", "shape": "box", "title": "\u003cb\u003eQuery 14\u003c/b\u003e\u003cbr\u003e1.hates.5.department.CS"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q15", "label": "Q15", "shape": "box", "title": "\u003cb\u003eQuery 15\u003c/b\u003e\u003cbr\u003e2.loves.5.gender.non-binary\u003cbr\u003e3.knows.12.department.AI\u003cbr\u003e5.likes.12.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q16", "label": "Q16", "shape": "box", "title": "\u003cb\u003eQuery 16\u003c/b\u003e\u003cbr\u003e4.knows.9.age.\"35\"\u003cbr\u003e3.hates.9.gender.male"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q17", "label": "Q17", "shape": "box", "title": "\u003cb\u003eQuery 17\u003c/b\u003e\u003cbr\u003e1.loves.4.gender.non-binary"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q18", "label": "Q18", "shape": "box", "title": "\u003cb\u003eQuery 18\u003c/b\u003e\u003cbr\u003e1.loves.4.gender.non-binary\u003cbr\u003e2.hates.3.city.Amsterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q19", "label": "Q19", "shape": "box", "title": "\u003cb\u003eQuery 19\u003c/b\u003e\u003cbr\u003e2.envies.3.gender.female\u003cbr\u003e4.loves.15.gender.non-binary\u003cbr\u003e3.knows.12.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q20", "label": "Q20", "shape": "box", "title": "\u003cb\u003eQuery 20\u003c/b\u003e\u003cbr\u003e1.envies.2.department.CS\u003cbr\u003e1.envies.2.department.CS\u003cbr\u003e2.hates.3.city.Amsterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q21", "label": "Q21", "shape": "box", "title": "\u003cb\u003eQuery 21\u003c/b\u003e\u003cbr\u003e1.hates.5.department.CS"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q22", "label": "Q22", "shape": "box", "title": "\u003cb\u003eQuery 22\u003c/b\u003e\u003cbr\u003e1.knows.12.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q23", "label": "Q23", "shape": "box", "title": "\u003cb\u003eQuery 23\u003c/b\u003e\u003cbr\u003e1.hates.8.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q24", "label": "Q24", "shape": "box", "title": "\u003cb\u003eQuery 24\u003c/b\u003e\u003cbr\u003e4.knows.9.age.\"35\"\u003cbr\u003e5.likes.12.department.AI\u003cbr\u003e4.knows.9.age.\"35\""}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q25", "label": "Q25", "shape": "box", "title": "\u003cb\u003eQuery 25\u003c/b\u003e\u003cbr\u003e1.hates.2.gender.female"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q26", "label": "Q26", "shape": "box", "title": "\u003cb\u003eQuery 26\u003c/b\u003e\u003cbr\u003e2.loves.4.age.\"35\"\u003cbr\u003e1.loves.4.age.\"35\"\u003cbr\u003e1.loves.4.age.\"35\""}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q27", "label": "Q27", "shape": "box", "title": "\u003cb\u003eQuery 27\u003c/b\u003e\u003cbr\u003e2.loves.4.age.\"35\"\u003cbr\u003e1.envies.2.department.CS"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q28", "label": "Q28", "shape": "box", "title": "\u003cb\u003eQuery 28\u003c/b\u003e\u003cbr\u003e2.hates.3.department.DS\u003cbr\u003e1.hates.5.department.CS\u003cbr\u003e2.loves.4.age.\"35\""}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q29", "label": "Q29", "shape": "box", "title": "\u003cb\u003eQuery 29\u003c/b\u003e\u003cbr\u003e1.loves.9.city.Rotterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q30", "label": "Q30", "shape": "box", "title": "\u003cb\u003eQuery 30\u003c/b\u003e\u003cbr\u003e4.knows.9.gender.male"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q31", "label": "Q31", "shape": "box", "title": "\u003cb\u003eQuery 31\u003c/b\u003e\u003cbr\u003e2.hates.13.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q32", "label": "Q32", "shape": "box", "title": "\u003cb\u003eQuery 32\u003c/b\u003e\u003cbr\u003e1.hates.2.gender.female\u003cbr\u003e4.loves.15.city.Rotterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q33", "label": "Q33", "shape": "box", "title": "\u003cb\u003eQuery 33\u003c/b\u003e\u003cbr\u003e3.knows.12.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q34", "label": "Q34", "shape": "box", "title": "\u003cb\u003eQuery 34\u003c/b\u003e\u003cbr\u003e1.loves.4.age.\"35\"\u003cbr\u003e1.hates.5.department.CS\u003cbr\u003e2.hates.3.city.Amsterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q35", "label": "Q35", "shape": "box", "title": "\u003cb\u003eQuery 35\u003c/b\u003e\u003cbr\u003e1.envies.2.department.CS\u003cbr\u003e1.loves.4.gender.non-binary"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q36", "label": "Q36", "shape": "box", "title": "\u003cb\u003eQuery 36\u003c/b\u003e\u003cbr\u003e2.loves.4.age.\"35\"\u003cbr\u003e1.loves.4.age.\"35\"\u003cbr\u003e2.loves.4.age.\"35\""}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q37", "label": "Q37", "shape": "box", "title": "\u003cb\u003eQuery 37\u003c/b\u003e\u003cbr\u003e2.likes.4.department.AI\u003cbr\u003e1.envies.4.department.AI\u003cbr\u003e3.envies.4.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q38", "label": "Q38", "shape": "box", "title": "\u003cb\u003eQuery 38\u003c/b\u003e\u003cbr\u003e8.likes.11.age.\"25\"\u003cbr\u003e7.loves.8.city.Amsterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q39", "label": "Q39", "shape": "box", "title": "\u003cb\u003eQuery 39\u003c/b\u003e\u003cbr\u003e4.loves.15.city.Rotterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q40", "label": "Q40", "shape": "box", "title": "\u003cb\u003eQuery 40\u003c/b\u003e\u003cbr\u003e2.loves.4.age.\"35\""}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q41", "label": "Q41", "shape": "box", "title": "\u003cb\u003eQuery 41\u003c/b\u003e\u003cbr\u003e4.loves.15.city.Rotterdam\u003cbr\u003e5.loves.8.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q42", "label": "Q42", "shape": "box", "title": "\u003cb\u003eQuery 42\u003c/b\u003e\u003cbr\u003e2.loves.4.age.\"35\"\u003cbr\u003e1.hates.5.department.CS\u003cbr\u003e2.hates.3.city.Amsterdam"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q43", "label": "Q43", "shape": "box", "title": "\u003cb\u003eQuery 43\u003c/b\u003e\u003cbr\u003e2.loves.4.gender.non-binary"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q44", "label": "Q44", "shape": "box", "title": "\u003cb\u003eQuery 44\u003c/b\u003e\u003cbr\u003e2.loves.4.gender.non-binary\u003cbr\u003e1.envies.2.gender.female"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q45", "label": "Q45", "shape": "box", "title": "\u003cb\u003eQuery 45\u003c/b\u003e\u003cbr\u003e1.hates.8.department.AI\u003cbr\u003e3.hates.9.gender.male"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q46", "label": "Q46", "shape": "box", "title": "\u003cb\u003eQuery 46\u003c/b\u003e\u003cbr\u003e3.hates.9.age.\"35\"\u003cbr\u003e4.knows.9.gender.male"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q47", "label": "Q47", "shape": "box", "title": "\u003cb\u003eQuery 47\u003c/b\u003e\u003cbr\u003e1.hates.2.gender.female"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q48", "label": "Q48", "shape": "box", "title": "\u003cb\u003eQuery 48\u003c/b\u003e\u003cbr\u003e2.loves.5.department.DS\u003cbr\u003e3.knows.12.department.AI"}, {"color": "#a8d08d", "font": {"color": "black"}, "id": "Q49", "label": "Q49", "shape": "box", "title": "\u003cb\u003eQuery 49\u003c/b\u003e\u003cbr\u003e1.hates.5.department.CS\u003cbr\u003e1.envies.2.department.CS\u003cbr\u003e2.hates.3.department.DS"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G0", "label": "G0", "shape": "database", "title": "\u003cb\u003eGraph 0\u003c/b\u003e\u003cbr\u003eImportance Score: 44"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G1", "label": "G1", "shape": "database", "title": "\u003cb\u003eGraph 1\u003c/b\u003e\u003cbr\u003eImportance Score: 44"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G2", "label": "G2", "shape": "database", "title": "\u003cb\u003eGraph 2\u003c/b\u003e\u003cbr\u003eImportance Score: 12"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G3", "label": "G3", "shape": "database", "title": "\u003cb\u003eGraph 3\u003c/b\u003e\u003cbr\u003eImportance Score: 0"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G4", "label": "G4", "shape": "database", "title": "\u003cb\u003eGraph 4\u003c/b\u003e\u003cbr\u003eImportance Score: 0"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G5", "label": "G5", "shape": "database", "title": "\u003cb\u003eGraph 5\u003c/b\u003e\u003cbr\u003eImportance Score: 4"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G6", "label": "G6", "shape": "database", "title": "\u003cb\u003eGraph 6\u003c/b\u003e\u003cbr\u003eImportance Score: 6"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G7", "label": "G7", "shape": "database", "title": "\u003cb\u003eGraph 7\u003c/b\u003e\u003cbr\u003eImportance Score: 2"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G8", "label": "G8", "shape": "database", "title": "\u003cb\u003eGraph 8\u003c/b\u003e\u003cbr\u003eImportance Score: 0"}, {"color": "#9bc2e6", "font": {"color": "black"}, "id": "G9", "label": "G9", "shape": "database", "title": "\u003cb\u003eGraph 9\u003c/b\u003e\u003cbr\u003eImportance Score: 4"}]);
+                  edges = new vis.DataSet([{"color": "#2e7d32", "from": "Q0", "title": "FULL Match", "to": "G9", "width": 3}, {"color": "#2e7d32", "from": "Q1", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q2", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#f57c00", "dashes": true, "from": "Q2", "title": "PARTIAL Match", "to": "G2", "width": 1}, {"color": "#f57c00", "dashes": true, "from": "Q2", "title": "PARTIAL Match", "to": "G6", "width": 1}, {"color": "#2e7d32", "from": "Q3", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q4", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q5", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q6", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q7", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q8", "title": "FULL Match", "to": "G2", "width": 3}, {"color": "#2e7d32", "from": "Q9", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q10", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#f57c00", "dashes": true, "from": "Q10", "title": "PARTIAL Match", "to": "G2", "width": 1}, {"color": "#f57c00", "dashes": true, "from": "Q10", "title": "PARTIAL Match", "to": "G6", "width": 1}, {"color": "#2e7d32", "from": "Q11", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q12", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q13", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q14", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q14", "title": "FULL Match", "to": "G2", "width": 3}, {"color": "#2e7d32", "from": "Q15", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q16", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q17", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q18", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#f57c00", "dashes": true, "from": "Q18", "title": "PARTIAL Match", "to": "G6", "width": 1}, {"color": "#2e7d32", "from": "Q19", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q20", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#f57c00", "dashes": true, "from": "Q20", "title": "PARTIAL Match", "to": "G6", "width": 1}, {"color": "#2e7d32", "from": "Q21", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q21", "title": "FULL Match", "to": "G2", "width": 3}, {"color": "#2e7d32", "from": "Q22", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q23", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q24", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q25", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q26", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q27", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q28", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#f57c00", "dashes": true, "from": "Q28", "title": "PARTIAL Match", "to": "G2", "width": 1}, {"color": "#2e7d32", "from": "Q29", "title": "FULL Match", "to": "G7", "width": 3}, {"color": "#2e7d32", "from": "Q30", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q31", "title": "FULL Match", "to": "G5", "width": 3}, {"color": "#2e7d32", "from": "Q32", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q33", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q34", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#f57c00", "dashes": true, "from": "Q34", "title": "PARTIAL Match", "to": "G2", "width": 1}, {"color": "#f57c00", "dashes": true, "from": "Q34", "title": "PARTIAL Match", "to": "G6", "width": 1}, {"color": "#2e7d32", "from": "Q35", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q36", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q37", "title": "FULL Match", "to": "G9", "width": 3}, {"color": "#2e7d32", "from": "Q38", "title": "FULL Match", "to": "G5", "width": 3}, {"color": "#2e7d32", "from": "Q39", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q40", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q41", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q42", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#f57c00", "dashes": true, "from": "Q42", "title": "PARTIAL Match", "to": "G2", "width": 1}, {"color": "#f57c00", "dashes": true, "from": "Q42", "title": "PARTIAL Match", "to": "G6", "width": 1}, {"color": "#2e7d32", "from": "Q43", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q44", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#2e7d32", "from": "Q45", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q46", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q47", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q48", "title": "FULL Match", "to": "G0", "width": 3}, {"color": "#2e7d32", "from": "Q49", "title": "FULL Match", "to": "G1", "width": 3}, {"color": "#f57c00", "dashes": true, "from": "Q49", "title": "PARTIAL Match", "to": "G2", "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "forceAtlas2Based": {
+            "avoidOverlap": 0,
+            "centralGravity": 0.01,
+            "damping": 0.4,
+            "gravitationalConstant": -50,
+            "springConstant": 0.08,
+            "springLength": 200
+        },
+        "solver": "forceAtlas2Based",
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>

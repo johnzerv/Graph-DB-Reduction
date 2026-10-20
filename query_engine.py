@@ -1,34 +1,27 @@
-import re
+from pathlib import Path
 
-from graph import Graph
+# Assuming the classes from the first file are imported. 
+# Adjust the import statement to match your actual filename (e.g., from database import Graph, GraphDB)
+from graph import Graph, GraphDB
 
 class QueryEngine:
-    def __init__(self, db_filepath, log_filepath):
-        """Load graph and query data from the supplied files"""
+    def __init__(self, db_or_filepath, log_filepath=None):
+        """Load graph and query data utilizing the GraphDB class"""
 
-        print(f"Loading Database from {db_filepath}...")
-        self.graphs = self._parse_database(db_filepath)
+        if isinstance(db_or_filepath, GraphDB):
+            self.db = db_or_filepath
+        else:
+            print(f"Loading Database from {db_or_filepath}...")
+            self.db = GraphDB(database_file=Path(db_or_filepath))
+            
+        self.graphs = self.db.graphs
         
-        print(f"Loading Queries from {log_filepath}...")
-        self.queries = self._parse_queries(log_filepath)
-
-    def _parse_database(self, filepath):
-        """Read graph lines and convert each graph to a set of triples"""
-        graphs = []
-        with open(filepath, 'r') as f:
-            for line in f:
-                raw_triples = re.findall(r'<(.*?)>', line)
-                graph_triples = set()
-                for t in raw_triples:
-                    parts = t.split(',')
-                    if len(parts) == 3:
-                        graph_triples.add((parts[0].strip(), parts[1].strip(), parts[2].strip()))
-                graphs.append(graph_triples)
-        return graphs
+        log_file = log_filepath or self.db.log_file
+        self.queries = self._parse_queries(log_file)
 
     def _parse_queries(self, filepath):
         """Read query-log lines and split each query into paths"""
-        
+
         queries = []
         with open(filepath, 'r') as f:
             for line in f:
@@ -37,20 +30,26 @@ class QueryEngine:
                     queries.append(paths)
         return queries
 
-    def _satisfies_path(self, graph_triples, path):
-        """Check whether a graph contains every triple required by a query path"""
-
+    def _satisfies_path(self, graph: Graph, path: str):
+        """Check whether a Graph object satisfies every step required by a query path"""
         parts = path.split('.')
         
-        # Edge case: Path is just a single node ID (e.g., 5)
+        # Edge case: Path is just a single entity (node ID, edge label, or attribute value)
         if len(parts) == 1:
-            single_node = parts[0]
-            for (source, _, dest) in graph_triples:
-                if (source == single_node and source.isdigit()) or \
-                   (dest == single_node and dest.isdigit()) or \
-                   single_node in Graph.EDGE_LABELS or \
-                   type(single_node) == str:
-                    return True
+            source = parts[0]
+            
+            # Check if it's an node
+            if source.isdigit() and int(source) in graph.nodes:
+                return True
+            
+            # Check if it's an edge label
+            if any(label == source for _, label, _ in graph.edges):
+                return True
+                
+            # Check if it's an attribute name or value
+            if any(attr == source or val == source for _, attr, val in graph.attributes):
+                return True
+                
             return False
 
         # Process the path in steps of 2 (Source Node + Edge/Attribute Label)
@@ -58,26 +57,41 @@ class QueryEngine:
             source = parts[i]
             predicate = parts[i+1]
             
+            if not source.isdigit():
+                return False
+                
+            src = int(source)
+            
             if i + 2 < len(parts):
                 destination = parts[i+2]
-                if (source, predicate, destination) not in graph_triples:
+                match_found = False
+                
+                # 1. Check against edges (where destination is another integer node)
+                if destination.isdigit():
+                    if (src, predicate, int(destination)) in graph.edges:
+                        match_found = True
+                
+                # 2. Check against attributes (where destination is a string value --> attribute value)
+                if not match_found and (src, predicate, destination) in graph.attributes:
+                    match_found = True
+                    
+                if not match_found:
                     return False
             else:
-                found = False
-                for (gs, gp, _) in graph_triples:
-                    if gs == source and gp == predicate:
-                        found = True
-                        break
+                # Path ends with a predicate, just verify the source has this predicate as an edge or attribute
+                found = any(s == src and p == predicate for s, p, _ in graph.edges)
+                if not found:
+                    found = any(s == src and p == predicate for s, p, _ in graph.attributes)
+                    
                 if not found:
                     return False
                     
         return True
 
-    def _evaluate_query_on_graph(self, graph_triples, query_paths):
+    def _evaluate_query_on_graph(self, graph: Graph, query_paths):
         """Evaluate all paths in a query against one graph. Returns FULL, PARTIAL, or NONE based on the matches."""
-
         paths_satisfied = sum(
-            1 for path in query_paths if self._satisfies_path(graph_triples, path)
+            1 for path in query_paths if self._satisfies_path(graph, path)
         )
         total_paths = len(query_paths)
                 
