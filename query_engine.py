@@ -93,9 +93,11 @@ class QueryEngine:
 
         Returns a mapping from query and graph index pairs to FULL or PARTIAL results
         """
-        
         print("\n--- RUNNING QUERY ENGINE ---\n")
-        match_results = {}
+        # All dicts hold the same information, structured differently
+        graph_match_results = {}
+        query_full_matches = {}
+        query_partial_matches = {}
         
         for q_idx, query in enumerate(self.queries):
             full_matches = []
@@ -106,13 +108,16 @@ class QueryEngine:
                 
                 if result == 'FULL':
                     full_matches.append(g_idx)
-                    match_results[(q_idx, g_idx)] = 'FULL'
+                    graph_match_results[(q_idx, g_idx)] = 'FULL'
                 elif result == 'PARTIAL':
                     partial_matches.append(g_idx)
-                    match_results[(q_idx, g_idx)] = 'PARTIAL'
+                    graph_match_results[(q_idx, g_idx)] = 'PARTIAL'
+
+            query_full_matches[q_idx] = full_matches
+            query_partial_matches[q_idx] = partial_matches
                     
             print(f"Query {q_idx} | {query}")
             print(f"  -> FULL Matches: Graphs {full_matches}")
             print(f"  -> PARTIAL Matches: Graphs {partial_matches}\n")
             
-        return match_results
+        return graph_match_results, query_full_matches, query_partial_matches

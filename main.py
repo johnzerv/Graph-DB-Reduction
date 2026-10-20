@@ -5,6 +5,17 @@ from graph import Graph, GraphDB
 from query_engine import QueryEngine
 from reducer import BaselineReducer
 from visualizers import visualize_query_graph_relations
+from evaluator import Evaluator
+
+
+def print_recall_summary(title, result):
+    query_summary = ", ".join(
+        f"{query}={score:.2f}" for query, score in result["per_query"].items()
+    )
+    print(f"{title}")
+    print(f"Query recall: {query_summary}")
+    print(f"Macro recall: {result['macro']:.2f}")
+    print(f"Micro recall: {result['micro']:.2f}")
 
 parser = argparse.ArgumentParser(
     description="Evaluate the query log against a generated graph database."
@@ -28,11 +39,13 @@ graphDB = GraphDB(
 
 # Execute all queries to obtain the query answers
 engine = QueryEngine(graphDB.database_file, graphDB.log_file)
-query_answers = engine.run()
+query_answers, query_full_matches, query_partial_matches = engine.run()
+# print(query_answers, query_full_matches, query_partial_matches)
 
 # Use the baseline reducer (score system) to create a ranking of graphs based on the query results
 baseline_reducer = BaselineReducer(graphDB=graphDB)
 graph_scores = baseline_reducer.calculate_scores(query_answers)
+baseline_reducer.print_ranking()
 
 # Visualize the query-graph relationships
 visualize_query_graph_relations(
@@ -43,14 +56,20 @@ visualize_query_graph_relations(
     output_file=f"query_relations_G{graphDB.group_number}_{graphDB.num_graphs}_{graphDB.query_mode}.html"
 )
 
-baseline_reducer.print_ranking()
-
+# Proceed to the graph database reduction based on the baseline approach
 reduced_graphDB = baseline_reducer.reduce()
 
+# Re-execute the same query-set on the reduced graph database
 engine = QueryEngine(reduced_graphDB.database_file, graphDB.log_file)
-query_answers = engine.run()
+query_answers_reduced, query_full_matches_reduced, query_partial_matches_reduced = engine.run()
 
-baseline_reducer = BaselineReducer(graphDB=reduced_graphDB)
-graph_scores = baseline_reducer.calculate_scores(query_answers)
-baseline_reducer.print_ranking()
+# Calculate recalls per-query, micro and macro average metrics for full matches
+e = Evaluator()
+result_full = e.evaluate(query_full_matches, query_full_matches_reduced)
+print_recall_summary("--- FULL MATCH RECALL ---", result_full)
+
+# Same for partial matches
+result_partial = e.evaluate(query_partial_matches, query_partial_matches_reduced)
+print_recall_summary("\n--- PARTIAL MATCH RECALL ---", result_partial)
+
 
