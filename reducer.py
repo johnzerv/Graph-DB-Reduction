@@ -1,3 +1,5 @@
+from collections import Counter
+
 from graph import GraphDB
 
 class Reducer:
@@ -13,6 +15,8 @@ class BaselineReducer(Reducer):
     """
     A simple scoring system to rank graphs based on query results.
     """
+    name = "BASELINE"
+
     def __init__(self, graphDB: GraphDB, **kwargs):
         super().__init__(graphDB, **kwargs)
 
@@ -30,7 +34,7 @@ class BaselineReducer(Reducer):
         return self.graph_scores
 
     def print_ranking(self):
-        print("--- BASELINE RANKING LIST ---")
+        print(f"--- {self.name} RANKING LIST ---")
         sorted_graphs = sorted(self.graph_scores.items(), key=lambda item: item[1], reverse=True)
         
         for rank, (g_idx, score) in enumerate(sorted_graphs):
@@ -62,3 +66,27 @@ class BaselineReducer(Reducer):
         print(f"Removed {len(removed_graph_indices)} lowest-scoring graphs: {removed_graph_indices}")
         
         return self.graphDB.reduce(retained_graph_indices)
+
+
+class RarityReducer(BaselineReducer):
+    """
+    Scores graphs by how rare their answers are. Each query gives away 1 point, split equally among the graphs that fully answer it
+    """
+    name = "RARITY"
+
+    def __init__(self, graphDB: GraphDB, alpha=0.5, **kwargs):
+        super().__init__(graphDB, **kwargs)
+        self.alpha = alpha
+
+    def calculate_scores(self, match_results):
+        # Number of graphs that answer each query fully / partially
+        full_count = Counter(q_idx for (q_idx, _), result in match_results.items() if result == 'FULL')
+        partial_count = Counter(q_idx for (q_idx, _), result in match_results.items() if result == 'PARTIAL')
+
+        for (q_idx, g_idx), result in match_results.items():
+            if result == 'FULL':
+                self.graph_scores[g_idx] += 1 / full_count[q_idx]
+            elif result == 'PARTIAL':
+                self.graph_scores[g_idx] += self.alpha / partial_count[q_idx]
+
+        return self.graph_scores

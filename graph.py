@@ -165,7 +165,7 @@ class GraphGenerator:
             chosen_attrs = self.random.sample(list(self.attributes.keys()), num_attrs)
             for attr_name in chosen_attrs:
                 attr_val = self.random.choice(self.attributes[attr_name])
-                serialized_value = f'"{attr_val}"' if attr_val.isdigit() else attr_val
+                serialized_value = f'"{attr_val}"'  # attribute values are always quoted, as the spec requires
                 triples.append(f'<{node},{attr_name},{serialized_value}>')
                 attrs_raw.append((node, attr_name, serialized_value))
 
@@ -293,7 +293,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-visualize", action="store_true", help="do not visualize the database after generation")
     parser.add_argument("-rg", "--regenerate", action="store_true", help="regenerate the database even if it already exists")
     parser.add_argument("--query-mode", choices=("uniform", "skewed", "both"), default="uniform", help="How queries are distributed across graphs.")
-    parser.add_argument("--hot-ratio", type=float, default=0.2, help="Percentage of graphs considered 'hot' (e.g., 0.2 for 20%).")
+    parser.add_argument("--hot-ratio", type=float, default=0.2, help="Percentage of graphs considered 'hot' (e.g., 0.2 for 20 percent).")
 
     args = parser.parse_args()
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from graph import Graph, GraphDB
 from query_engine import QueryEngine
-from reducer import BaselineReducer
+from reducer import BaselineReducer, RarityReducer
 from visualizers import visualize_query_graph_relations
 from evaluator import Evaluator
 
@@ -16,6 +16,7 @@ def print_recall_summary(title, result):
     print(f"Query recall: {query_summary}")
     print(f"Macro recall: {result['macro']:.2f}")
     print(f"Micro recall: {result['micro']:.2f}")
+    print(f"Skipped queries (no answers in the original database): {result['skipped']}")
 
 parser = argparse.ArgumentParser(
     description="Evaluate the query log against a generated graph database."
@@ -24,6 +25,9 @@ parser.add_argument("-n", "--num-graphs", "--graphs", type=int, default=10, help
 parser.add_argument("--num-queries", "-q", type=int, default=20, help="number of queries in the query log (default: 20)")
 parser.add_argument("--query-mode", choices=["uniform", "skewed"], default="skewed", help="query generation mode (default: skewed)")
 parser.add_argument("--group-number", default="13", help="group number used in database and query filenames (default: 13)")
+parser.add_argument("--method", choices=["baseline", "rarity"], default="baseline", help="graph scoring method (default: baseline)")
+parser.add_argument("--budget", "-b", type=float, default=0.7, help="fraction of graphs to keep, B in [0,1] (default: 0.7)")
+parser.add_argument("--no-visualize", action="store_true", help="skip the query-graph HTML view (useful for large datasets)")
 args = parser.parse_args()
 
 # Load the graph database and query log
@@ -42,22 +46,24 @@ engine = QueryEngine(graphDB.database_file, graphDB.log_file)
 query_answers, query_full_matches, query_partial_matches = engine.run()
 # print(query_answers, query_full_matches, query_partial_matches)
 
-# Use the baseline reducer (score system) to create a ranking of graphs based on the query results
-baseline_reducer = BaselineReducer(graphDB=graphDB)
-graph_scores = baseline_reducer.calculate_scores(query_answers)
-baseline_reducer.print_ranking()
+# Use the chosen reducer (score system) to create a ranking of graphs based on the query results
+ReducerClass = RarityReducer if args.method == "rarity" else BaselineReducer
+reducer = ReducerClass(graphDB=graphDB, retain_percentage=args.budget)
+graph_scores = reducer.calculate_scores(query_answers)
+reducer.print_ranking()
 
 # Visualize the query-graph relationships
-visualize_query_graph_relations(
-    queries=engine.queries, 
-    num_graphs=len(engine.graphs), 
-    match_results=query_answers, 
-    graph_scores=graph_scores,
-    output_file=f"query_relations_G{graphDB.group_number}_{graphDB.num_graphs}_{graphDB.query_mode}.html"
-)
+if not args.no_visualize:
+    visualize_query_graph_relations(
+        queries=engine.queries,
+        num_graphs=len(engine.graphs),
+        match_results=query_answers,
+        graph_scores=graph_scores,
+        output_file=f"query_relations_G{graphDB.group_number}_{graphDB.num_graphs}_{graphDB.query_mode}.html"
+    )
 
-# Proceed to the graph database reduction based on the baseline approach
-reduced_graphDB = baseline_reducer.reduce()
+# Proceed to the graph database reduction based on the chosen approach
+reduced_graphDB = reducer.reduce()
 
 # Re-execute the same query-set on the reduced graph database
 engine = QueryEngine(reduced_graphDB.database_file, graphDB.log_file)
