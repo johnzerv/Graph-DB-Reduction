@@ -91,7 +91,7 @@ class GraphDB:
 
         return self
 
-    def reduce(self, retained_graph_indices):
+    def reduce(self, graph_indices_to_retain):
         """Return a new GraphDB containing only the selected graph indices"""
 
         reduced_db = GraphDB(
@@ -102,7 +102,7 @@ class GraphDB:
             dataset_dir=self.dataset_dir,
             database_file=self.dataset_dir / f"Database{self.group_number}_{self.num_graphs}.txt",
             log_file=self.dataset_dir / f"QLog{self.group_number}_{self.num_graphs}_{self.num_queries}_{self.query_mode}.txt",
-            graph_indices=retained_graph_indices
+            graph_indices=graph_indices_to_retain
         )
         reduced_db._save()
 
@@ -137,8 +137,9 @@ class GraphGenerator:
         self.hot_ratio = hot_ratio # Percentage of graphs considered "hot" for skewed query generation
 
     def generate_single_graph(self):
+        # Randomly choose the number of nodes
         num_nodes = self.random.randint(self.min_nodes, self.max_nodes)
-        nodes = list(range(1, num_nodes + 1))
+        nodes = list(range(1, num_nodes + 1))   # node indices
         
         triples = []
         edges_raw = []
@@ -146,11 +147,16 @@ class GraphGenerator:
 
         edges_dict = {}
         for source in nodes:
+            # Randomly choose the number of edges
             num_edges = self.random.randint(self.min_edges, self.max_edges)
+
+            # Sample the destination nodes
             destinations = self.random.sample(
                 [node for node in nodes if node != source],
                 num_edges,
             )
+
+            # Treat the selected src and dest nodes as tuples in order to prevent having the same pair with different label
             for dest in destinations:
                 pair = tuple(sorted((source, dest)))
                 if pair not in edges_dict:
@@ -160,12 +166,13 @@ class GraphGenerator:
             triples.append(f"<{source},{label},{dest}>")
             edges_raw.append((source, label, dest))
 
+        # For each node randomly select 0 to 2 attributes
         for node in nodes:
             num_attrs = self.random.randint(0, 2)
             chosen_attrs = self.random.sample(list(self.attributes.keys()), num_attrs)
             for attr_name in chosen_attrs:
                 attr_val = self.random.choice(self.attributes[attr_name])
-                serialized_value = f'"{attr_val}"'  # attribute values are always quoted, as the spec requires
+                serialized_value = f'"{attr_val}"'
                 triples.append(f'<{node},{attr_name},{serialized_value}>')
                 attrs_raw.append((node, attr_name, serialized_value))
 
@@ -219,7 +226,7 @@ class GraphGenerator:
 
         return self.db
 
-    def generate_query(self, graph: Graph):
+    def generate_path(self, graph: Graph):
         edges = graph.edges.copy()
         self.random.shuffle(edges)
 
@@ -241,10 +248,10 @@ class GraphGenerator:
         print(f"Generating {graph_db.num_queries} queries for {log_file}...")
         graph_db.dataset_dir.mkdir(parents=True, exist_ok=True)
 
-        query_targets = []
+        query_target_graphs = []
         if query_mode == "uniform":
-            query_targets = [i % graph_db.num_graphs for i in range(graph_db.num_queries)]
-            self.random.shuffle(query_targets)
+            query_target_graphs = [i % graph_db.num_graphs for i in range(graph_db.num_queries)]
+            self.random.shuffle(query_target_graphs)
         else:
             num_hot = max(1, int(graph_db.num_graphs * self.hot_ratio))
             hot_graphs = self.random.sample(range(graph_db.num_graphs), num_hot)
@@ -253,16 +260,16 @@ class GraphGenerator:
             print(f"  -> Hot Graphs chosen: {hot_graphs}")
             for _ in range(graph_db.num_queries):
                 if cold_graphs and self.random.random() > 0.85:
-                    query_targets.append(self.random.choice(cold_graphs))
+                    query_target_graphs.append(self.random.choice(cold_graphs))
                 else:
-                    query_targets.append(self.random.choice(hot_graphs))
+                    query_target_graphs.append(self.random.choice(hot_graphs))
 
         with open(log_file, "w") as output_file:
-            for target_idx in query_targets:
+            for target_idx in query_target_graphs:
                 paths = []
                 num_paths_in_query = self.random.randint(1, 3)
                 for _ in range(num_paths_in_query):
-                    path = self.generate_query(graph_db.graphs[target_idx])
+                    path = self.generate_path(graph_db.graphs[target_idx])
                     paths.append(path)
                 
                 output_file.write(",".join(paths) + "\n")
@@ -275,11 +282,11 @@ class GraphGenerator:
             database_file = self.db.database_file
 
         selected_graphs = []
-        wanted_indices = set(graph_indices)
+        indices_to_retain = set(graph_indices)
 
         with open(database_file, "r") as db_file:
             for idx, line in enumerate(db_file):
-                if idx in wanted_indices:
+                if idx in indices_to_retain:
                     selected_graphs.append(line.strip())
 
         return selected_graphs
