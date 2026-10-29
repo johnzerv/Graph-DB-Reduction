@@ -14,8 +14,6 @@ class Reducer(ABC):
 
 class ScoreReducer(Reducer, ABC):
     """ A generic base class for all score-based reducers """
-    name = "ScoreReducer"
-
     def __init__(self, graphDB: GraphDB, **kwargs):
         super().__init__(graphDB, **kwargs)
 
@@ -64,8 +62,6 @@ class BaselineScoreReducer(ScoreReducer):
     A simple scoring system to rank graphs based on query results.
     Each graph gets 2 points for every FULL match and 1 point for every PARTIAL match.
     """
-    name = "BASELINE"
-
     def calculate_scores(self, match_results):
         """Calculates scores: 2 points for FULL matches, 1 point for PARTIAL matches."""
         for (_, g_idx), result in match_results.items():
@@ -77,14 +73,13 @@ class BaselineScoreReducer(ScoreReducer):
         return self.graph_scores
 
 
-class RarityReducer(ScoreReducer):
+class RarityScoreReducer(ScoreReducer):
     """
     Scores graphs by how rare their answers are. Each query gives away 1 point, 
     split equally among the graphs that answer it. Full matches receive the
     complete share, while partial matches receive that share multiplied by
     alpha, which defaults to 0.5.
     """
-    name = "RARITY"
 
     def __init__(self, graphDB: GraphDB, alpha=0.5, **kwargs):
         super().__init__(graphDB, **kwargs)

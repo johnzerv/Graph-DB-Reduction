@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from graph import GraphDB
 from query_engine import QueryEngine
-from reducer import BaselineReducer, RarityReducer
+from reducer import BaselineScoreReducer, RarityScoreReducer
 from evaluator import Evaluator
 
 METRICS = ["full_macro", "full_micro", "partial_macro", "partial_micro"]
@@ -80,8 +80,8 @@ class ExperimentRunner:
 
         # Score the graphs once per method; each B is just a different cut of the ranking
         methods = {
-            "baseline": BaselineReducer(graphDB=graphDB).calculate_scores(pairs),
-            "rarity": RarityReducer(graphDB=graphDB, alpha=self.config.alpha).calculate_scores(pairs),
+            "baseline": BaselineScoreReducer(graphDB=graphDB).calculate_scores(pairs),
+            "rarity": RarityScoreReducer(graphDB=graphDB, alpha=self.config.alpha).calculate_scores(pairs),
         }
 
         results = []
@@ -166,6 +166,7 @@ def parse_arguments():
     args = parser.parse_args()
     out_dir = Path(args.out)
     out_dir.mkdir(exist_ok=True)
+    
     return ExperimentConfig(
         num_graphs=args.num_graphs,
         num_queries=args.num_queries,
