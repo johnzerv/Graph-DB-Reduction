@@ -130,8 +130,8 @@ class QueryEngine:
             query_full_matches[q_idx] = full_matches
             query_partial_matches[q_idx] = partial_matches
                     
-            print(f"Query {q_idx} | {query}")
-            print(f"  -> FULL Matches: Graphs {full_matches}")
-            print(f"  -> PARTIAL Matches: Graphs {partial_matches}\n")
+            # print(f"Query {q_idx} | {query}")
+            # print(f"  -> FULL Matches: Graphs {full_matches}")
+            # print(f"  -> PARTIAL Matches: Graphs {partial_matches}\n")
             
         return graph_match_results, query_full_matches, query_partial_matches

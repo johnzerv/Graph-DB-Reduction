@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from graph import GraphDB
 from query_engine import QueryEngine
-from reducer import BaselineScoreReducer, RarityScoreReducer
+from reducer import BaselineScoreReducer, RarityScoreReducer, RecallGreedyReducer
 from evaluator import Evaluator
 
 METRICS = ["full_macro", "full_micro", "partial_macro", "partial_micro"]
@@ -41,15 +41,8 @@ class ExperimentRunner:
         self.config = config
         self.evaluator = Evaluator()
 
-    def _keep_top(self, scores: dict[int, float], budget: float) -> set[int]:
-        """Same selection rule as BaselineReducer.reduce(), without writing files."""
-        k = max(1, int(len(scores) * budget))
-        ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-        return {g_idx for g_idx, _ in ranked[:k]}
-
     def _restrict(self, answers_by_query: dict[str, list[int]], kept: set[int]) -> dict[str, list[int]]:
-        """Answers on the reduced database = original answers from the kept graphs
-        (each graph is evaluated on its own so there is no need to re-run the queries)"""
+        """Answers on the reduced database = original answers from the kept graphs."""
         return {q: [g for g in answers if g in kept] for q, answers in answers_by_query.items()}
 
     def _evaluate(self, full: dict[str, list[int]], partial: dict[str, list[int]], kept: set[int]) -> dict[str, float]:
@@ -60,6 +53,46 @@ class ExperimentRunner:
             "full_micro": r_full["micro"],
             "partial_macro": r_part["macro"],
             "partial_micro": r_part["micro"],
+        }
+
+    def _run_score_method(self, scores: dict[int, float], full: dict[str, list[int]], partial: dict[str, list[int]], budget: float) -> dict[str, float]:
+        """Score-based methods runner (baseline and rarity) across different "budgets" B."""
+        k = max(1, int(len(scores) * budget))
+        ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        kept = {g_idx for g_idx, _ in ranked[:k]}
+        return self._evaluate(full, partial, kept)
+
+    def _run_recall_greedy(self, graph_db, full, partial, budget) -> dict[str, float]:
+        """Runner for the iterative greedy reduction method."""
+        reducer = RecallGreedyReducer(
+            graphDB=graph_db,
+            retain_percentage=budget,
+            metric="macro",
+            match_type="FULL",
+        )
+        reduced_db = reducer.reduce(answers_original_by_query=full)
+        _, reduced_full, reduced_partial = QueryEngine(
+            reduced_db,
+            log_filepath=graph_db.log_file,
+        ).run()
+
+        # Map reduced indices back to original graph indices
+        reduced_full = {
+            query: [reducer.retained_graph_indices[i] for i in graph_ids]
+            for query, graph_ids in reduced_full.items()
+        }
+        reduced_partial = {
+            query: [reducer.retained_graph_indices[i] for i in graph_ids]
+            for query, graph_ids in reduced_partial.items()
+        }
+        
+        full_result = self.evaluator.evaluate(full, reduced_full)
+        partial_result = self.evaluator.evaluate(partial, reduced_partial)
+        return {
+            "full_macro": full_result["macro"],
+            "full_micro": full_result["micro"],
+            "partial_macro": partial_result["macro"],
+            "partial_micro": partial_result["micro"],
         }
 
     def run_mode(self, mode: str) -> list[dict[str, float]]:
@@ -78,21 +111,30 @@ class ExperimentRunner:
             engine = QueryEngine(graphDB.database_file, graphDB.log_file)
             pairs, full, partial = engine.run()
 
-        # Score the graphs once per method; each B is just a different cut of the ranking
-        methods = {
+        # Precompute scores once per query log
+        methods_scores = {
             "baseline": BaselineScoreReducer(graphDB=graphDB).calculate_scores(pairs),
             "rarity": RarityScoreReducer(graphDB=graphDB, alpha=self.config.alpha).calculate_scores(pairs),
         }
 
         results = []
         for budget in self.config.budgets:
-            for name, scores in methods.items():
+            # Run score-based methods
+            for name, scores in methods_scores.items():
                 results.append({
                     "query distribution": mode,
                     "method": name,
                     "B": budget,
-                    **self._evaluate(full, partial, self._keep_top(scores, budget))
+                    **self._run_score_method(scores, full, partial, budget)
                 })
+            
+            # Run greedy method
+            # results.append({
+            #     "query distribution": mode,
+            #     "method": "recall-greedy",
+            #     "B": budget,
+            #     **self._run_recall_greedy(graphDB, full, partial, budget),
+            # })
         return results
 
     def execute(self):
@@ -120,6 +162,7 @@ class ExperimentRunner:
         styles = {
             "baseline": dict(color="#2a78d6", marker="o", markersize=6, linewidth=2),
             "rarity": dict(color="#eb6834", marker="s", markersize=6, linewidth=2),
+            # "recall-greedy": dict(color="#2a9d8f", marker="^", markersize=6, linewidth=2),
         }
         titles = {
             "full_macro": "Full matches: macro recall",

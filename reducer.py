@@ -98,3 +98,138 @@ class RarityScoreReducer(ScoreReducer):
                 self.graph_scores[g_idx] += self.alpha / partial_count[q_idx]
 
         return self.graph_scores
+
+class RecallGreedyReducer(Reducer):
+    """
+    Iteratively removes the graph whose removal maximizes
+    the selected recall metric.
+
+    metric: "macro" or "micro"
+    match_type: "FULL" or "PARTIAL"
+    """
+
+    def __init__(
+        self,
+        graphDB: GraphDB,
+        metric="macro",
+        match_type="FULL",
+        **kwargs
+    ):
+        super().__init__(graphDB, **kwargs)
+
+        if metric not in {"macro", "micro"}:
+            raise ValueError("metric must be 'macro' or 'micro'")
+
+        if match_type not in {"FULL", "PARTIAL"}:
+            raise ValueError("match_type must be 'FULL' or 'PARTIAL'")
+
+        self.metric = metric
+        self.match_type = match_type
+        self.retained_graph_indices = list(range(self.num_graphs))
+
+    def reduce(self, answers_original_by_query, **kwargs):
+        from query_engine import QueryEngine
+        from evaluator import Evaluator
+
+        evaluator = Evaluator()
+
+        num_graphs_to_keep = max(
+            1, int(self.num_graphs * self.retain_percentage)
+        )
+
+        remaining = list(range(self.num_graphs))
+        removed = []
+
+        def calculate_recall(graph_indices):
+            # Create the candidate reduced database.
+            candidate_db = self.graphDB.reduce(graph_indices)
+
+            # Run the original query log on this candidate.
+            engine = QueryEngine(
+                candidate_db,
+                log_filepath=self.graphDB.log_file
+            )
+
+            _, full_matches, partial_matches = engine.run()
+
+            # GraphDB assigns local indices when loading a reduced database.
+            # Convert them back to the original database indices for recall.
+            full_matches = {
+                query: [graph_indices[i] for i in graph_ids]
+                for query, graph_ids in full_matches.items()
+            }
+            partial_matches = {
+                query: [graph_indices[i] for i in graph_ids]
+                for query, graph_ids in partial_matches.items()
+            }
+
+            # Select the kind of answers we want to preserve.
+            if self.match_type == "FULL":
+                answers_reduced = full_matches
+            else:
+                answers_reduced = partial_matches
+
+            result = evaluator.evaluate(
+                answers_original_by_query,
+                answers_reduced
+            )
+
+            return result[self.metric]
+
+        current_recall = calculate_recall(remaining)
+
+        print(
+            f"Initial {self.match_type} {self.metric} recall: "
+            f"{current_recall:.4f}"
+        )
+
+        while len(remaining) > num_graphs_to_keep:
+            best_graph = None
+            best_recall = float("-inf")
+
+            # Try removing every remaining graph.
+            for graph_idx in remaining:
+                candidate_indices = [
+                    i for i in remaining if i != graph_idx
+                ]
+
+                candidate_recall = calculate_recall(candidate_indices)
+
+                # Choose the removal that preserves the most recall.
+                if (
+                    candidate_recall > best_recall
+                    or (
+                        candidate_recall == best_recall
+                        and (
+                            best_graph is None
+                            or graph_idx < best_graph
+                        )
+                    )
+                ):
+                    best_graph = graph_idx
+                    best_recall = candidate_recall
+
+            remaining.remove(best_graph)
+            removed.append(best_graph)
+            current_recall = best_recall
+
+            print(
+                f"Removed graph {best_graph} | "
+                f"{self.match_type} {self.metric} recall: "
+                f"{current_recall:.4f} | "
+                f"Remaining: {len(remaining)}"
+            )
+
+        print("\n--- RECALL GREEDY REDUCTION ---")
+        print(f"Metric: {self.metric}")
+        print(f"Match type: {self.match_type}")
+        print(
+            f"Target keep percentage: "
+            f"{self.retain_percentage * 100:.1f}%"
+        )
+        print(f"Retained graphs: {remaining}")
+        print(f"Removed graphs: {removed}")
+        print(f"Final recall: {current_recall:.4f}")
+
+        self.retained_graph_indices = remaining
+        return self.graphDB.reduce(remaining)
