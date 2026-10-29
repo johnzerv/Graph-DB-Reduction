@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from graph import GraphDB
 from query_engine import QueryEngine
-from reducer import BaselineScoreReducer, RarityScoreReducer, RecallGreedyReducer
+from reducer import BaselineScoreReducer, RarityScoreReducer, OverlapParticipationRatioReducer, RecallGreedyReducer
 from evaluator import Evaluator
 
 METRICS = ["full_macro", "full_micro", "partial_macro", "partial_micro"]
@@ -56,7 +56,7 @@ class ExperimentRunner:
         }
 
     def _run_score_method(self, scores: dict[int, float], full: dict[str, list[int]], partial: dict[str, list[int]], budget: float) -> dict[str, float]:
-        """Score-based methods runner (baseline and rarity) across different "budgets" B."""
+        """Score-based methods runner (baseline, rarity, and overlap-participation ratio) across different "budgets" B."""
         k = max(1, int(len(scores) * budget))
         ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
         kept = {g_idx for g_idx, _ in ranked[:k]}
@@ -71,23 +71,23 @@ class ExperimentRunner:
             match_type="FULL",
         )
         reduced_db = reducer.reduce(answers_original_by_query=full)
-        _, reduced_full, reduced_partial = QueryEngine(
+        _, query_full_matches, query_partial_matches, _, _ = QueryEngine(
             reduced_db,
             log_filepath=graph_db.log_file,
         ).run()
 
         # Map reduced indices back to original graph indices
-        reduced_full = {
+        query_full_matches = {
             query: [reducer.retained_graph_indices[i] for i in graph_ids]
-            for query, graph_ids in reduced_full.items()
+            for query, graph_ids in query_full_matches.items()
         }
-        reduced_partial = {
+        query_partial_matches = {
             query: [reducer.retained_graph_indices[i] for i in graph_ids]
-            for query, graph_ids in reduced_partial.items()
+            for query, graph_ids in query_partial_matches.items()
         }
         
-        full_result = self.evaluator.evaluate(full, reduced_full)
-        partial_result = self.evaluator.evaluate(partial, reduced_partial)
+        full_result = self.evaluator.evaluate(full, query_full_matches)
+        partial_result = self.evaluator.evaluate(partial, query_partial_matches)
         return {
             "full_macro": full_result["macro"],
             "full_micro": full_result["micro"],
@@ -109,12 +109,16 @@ class ExperimentRunner:
         print(f"Running queries for the {mode} distribution ({graphDB.log_file.name})...")
         with contextlib.redirect_stdout(io.StringIO()):  # the engine prints every query
             engine = QueryEngine(graphDB.database_file, graphDB.log_file)
-            pairs, full, partial = engine.run()
+            pairs, full_by_query, partial_by_query, full_by_graph, partial_by_graph = engine.run()
 
         # Precompute scores once per query log
         methods_scores = {
             "baseline": BaselineScoreReducer(graphDB=graphDB).calculate_scores(pairs),
             "rarity": RarityScoreReducer(graphDB=graphDB, alpha=self.config.alpha).calculate_scores(pairs),
+            "overlap_participation": OverlapParticipationRatioReducer(graphDB=graphDB).calculate_scores(
+                full_matches_by_graph=full_by_graph, 
+                partial_matches_by_graph=partial_by_graph
+            ),
         }
 
         results = []
@@ -125,9 +129,8 @@ class ExperimentRunner:
                     "query distribution": mode,
                     "method": name,
                     "B": budget,
-                    **self._run_score_method(scores, full, partial, budget)
+                    **self._run_score_method(scores, full_by_query, partial_by_query, budget)
                 })
-            
             # Run greedy method
             # results.append({
             #     "query distribution": mode,
@@ -153,15 +156,16 @@ class ExperimentRunner:
 
     @staticmethod
     def print_table(rows):
-        print(f"\n{'query distribution':<20} {'method':<9} {'B':>4}  {'full macro':>10} {'full micro':>10} {'part macro':>10} {'part micro':>10}")
+        print(f"\n{'query distribution':<20} {'method':<20} {'B':>4}  {'full macro':>10} {'full micro':>10} {'part macro':>10} {'part micro':>10}")
         for row in rows:
-            print(f"{row['query distribution']:<20} {row['method']:<9} {row['B']:>4}  " + " ".join(f"{row[m]:>10.2f}" for m in METRICS))
+            print(f"{row['query distribution']:<20} {row['method']:<20} {row['B']:>4}  " + " ".join(f"{row[m]:>10.2f}" for m in METRICS))
 
     @staticmethod
     def plot_results(rows, config: ExperimentConfig):
         styles = {
             "baseline": dict(color="#2a78d6", marker="o", markersize=6, linewidth=2),
             "rarity": dict(color="#eb6834", marker="s", markersize=6, linewidth=2),
+            "overlap_participation": dict(color="#2a9d8f", marker="^", markersize=6, linewidth=2),
             # "recall-greedy": dict(color="#2a9d8f", marker="^", markersize=6, linewidth=2),
         }
         titles = {

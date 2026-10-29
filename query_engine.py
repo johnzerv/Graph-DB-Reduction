@@ -7,7 +7,6 @@ from graph import Graph, GraphDB
 class QueryEngine:
     def __init__(self, db_or_filepath, log_filepath=None):
         """Load graph and query data utilizing the GraphDB class"""
-
         if isinstance(db_or_filepath, GraphDB):
             self.db = db_or_filepath
         else:
@@ -88,7 +87,7 @@ class QueryEngine:
                     
         return True
 
-    def _evaluate_query_on_graph(self, graph: Graph, query_paths):
+    def _satisfies_query(self, graph: Graph, query_paths):
         """Evaluate all paths in a query against one graph. Returns FULL, PARTIAL, or NONE based on the matches."""
         paths_satisfied = sum(
             1 for path in query_paths if self._satisfies_path(graph, path)
@@ -108,30 +107,37 @@ class QueryEngine:
         Returns a mapping from query and graph index pairs to FULL or PARTIAL results
         """
         print("\n--- RUNNING QUERY ENGINE ---\n")
-        # All dicts hold the same information, structured differently
+
+        # All dicts hold the same information, structured differently (from queries to graphs)
         graph_match_results = {}
         query_full_matches = {}
         query_partial_matches = {}
-        
+
+        # From graphs to queries
+        graph_full_matches = {g_idx: [] for g_idx in range(len(self.graphs))}
+        graph_partial_matches = {g_idx: [] for g_idx in range(len(self.graphs))}
+
         for q_idx, query in enumerate(self.queries):
-            full_matches = []
-            partial_matches = []
+            qfull_matches = []
+            qpartial_matches = []
             
             for g_idx, graph in enumerate(self.graphs):
-                result = self._evaluate_query_on_graph(graph, query)
+                result = self._satisfies_query(graph, query)
                 
                 if result == 'FULL':
-                    full_matches.append(g_idx)
+                    qfull_matches.append(g_idx)
+                    graph_full_matches[g_idx].append(q_idx)
                     graph_match_results[(q_idx, g_idx)] = 'FULL'
                 elif result == 'PARTIAL':
-                    partial_matches.append(g_idx)
+                    qpartial_matches.append(g_idx)
+                    graph_partial_matches[g_idx].append(q_idx)
                     graph_match_results[(q_idx, g_idx)] = 'PARTIAL'
 
-            query_full_matches[q_idx] = full_matches
-            query_partial_matches[q_idx] = partial_matches
+            query_full_matches[q_idx] = qfull_matches
+            query_partial_matches[q_idx] = qpartial_matches
                     
             # print(f"Query {q_idx} | {query}")
-            # print(f"  -> FULL Matches: Graphs {full_matches}")
-            # print(f"  -> PARTIAL Matches: Graphs {partial_matches}\n")
+            # print(f"  -> FULL Matches: Graphs {qfull_matches}")
+            # print(f"  -> PARTIAL Matches: Graphs {qpartial_matches}\n")
             
-        return graph_match_results, query_full_matches, query_partial_matches
+        return graph_match_results, query_full_matches, query_partial_matches, graph_full_matches, graph_partial_matches

@@ -13,7 +13,11 @@ class Reducer(ABC):
         pass
 
 class ScoreReducer(Reducer, ABC):
-    """ A generic base class for all score-based reducers """
+    """ 
+    A generic base class for all score-based reducers.
+    A score-based reducer calculate a scor e for each graph based on the query results,
+    ranks them, and removes the lowest scoring graphs until the target retain_percentage is met.
+    """
     def __init__(self, graphDB: GraphDB, **kwargs):
         super().__init__(graphDB, **kwargs)
 
@@ -35,7 +39,7 @@ class ScoreReducer(Reducer, ABC):
         return sorted_graphs
 
     def reduce(self, **kwargs):
-        """ Removes lowest ranking graphs until the retain_percentage target is met """
+        """ The method for actual reduction of the graph database based on the calculated scores. """
         num_graphs_to_keep = max(1, int(self.num_graphs * self.retain_percentage))
         
         sorted_graphs = sorted(self.graph_scores.items(), key=lambda item: item[1], reverse=True)
@@ -59,7 +63,7 @@ class ScoreReducer(Reducer, ABC):
 
 class BaselineScoreReducer(ScoreReducer):
     """
-    A simple scoring system to rank graphs based on query results.
+    A simple scoring system to rank graphs based their participation in query results.
     Each graph gets 2 points for every FULL match and 1 point for every PARTIAL match.
     """
     def calculate_scores(self, match_results):
@@ -99,6 +103,122 @@ class RarityScoreReducer(ScoreReducer):
 
         return self.graph_scores
 
+class OverlapParticipationRatioReducer(ScoreReducer):
+    """
+    A scoring system that ranks graphs based on two factors: (1) their overlap with 
+    other graphs in terms of query answers,and (2) their participation in the overall query set.
+
+    Intuition: A graph that answers many queries but whose answers are largely covered by other
+    graphs is less valuable than a graph that answers queries with unique answers.
+
+    Removes graphs with no FULL or PARTIAL query matches first as the algorithm cannot provide overlap scores for these graphs.
+    It then iteratively removes the graph whose maximizes the ratio between its overlap with other graphs and its participation
+    in the query set, using weighted scores in order to take into account both FULL and PARTIAL matches.
+    """
+    def __init__(self, graphDB: GraphDB, **kwargs):
+        super().__init__(graphDB, **kwargs)
+        self.name = "Overlap Participation Ratio Reducer"
+
+    def calculate_scores(self, full_matches_by_graph, partial_matches_by_graph):
+        """
+        Calculates scores/order of removal by simulating the iterative 
+        removal process based on overlap-to-query ratios.
+        """
+        num_graphs_to_keep = max(1, int(self.num_graphs * self.retain_percentage))
+
+        FULL_WEIGHT = 2
+        PARTIAL_WEIGHT = 1
+
+        remaining = {
+            i: {
+                "FULL": set(full_matches_by_graph.get(i, [])),
+                "PARTIAL": set(partial_matches_by_graph.get(i, [])),
+            }
+            for i in range(self.num_graphs)
+        }
+
+        removed = []
+
+        removal_step = self.num_graphs
+
+        # Remove graphs with empty query answer sets
+        for i in list(remaining.keys()):
+            if len(remaining) <= num_graphs_to_keep:
+                break
+
+            if not remaining[i]["FULL"] and not remaining[i]["PARTIAL"]:
+                del remaining[i]
+                removed.append(i)
+                self.graph_scores[i] = 0.0  # Lowest score
+                removal_step -= 1
+
+        # Iteratively calulate weighted overlap-participation ratios.
+        while len(remaining) > num_graphs_to_keep:
+            overlap_scores = {}
+
+            for i, matches_i in remaining.items():
+                overlap = 0
+
+                for j, matches_j in remaining.items():
+                    if i == j:
+                        continue
+
+                    overlap += FULL_WEIGHT * len(
+                        matches_i["FULL"] & matches_j["FULL"]
+                    )
+
+                    overlap += FULL_WEIGHT * (
+                        len(matches_i["FULL"] & matches_j["PARTIAL"])
+                        + len(matches_i["PARTIAL"] & matches_j["FULL"])
+                    )
+
+                    overlap += PARTIAL_WEIGHT * len(
+                        matches_i["PARTIAL"] & matches_j["PARTIAL"]
+                    )
+
+                overlap_scores[i] = overlap
+
+            query_counts = {
+                i: (
+                    FULL_WEIGHT * len(matches["FULL"])
+                    + PARTIAL_WEIGHT * len(matches["PARTIAL"])
+                )
+                for i, matches in remaining.items()
+            }
+
+            overlap_ratios = {
+                i: overlap_scores[i] / query_counts[i]
+                for i in remaining
+                if query_counts[i] > 0
+            }
+
+            max_ratio = max(overlap_ratios.values())
+
+            candidates = [
+                i for i, ratio in overlap_ratios.items()
+                if ratio == max_ratio
+            ]
+
+            # Tie-break: lower participation
+            graph_to_remove = min(
+                candidates,
+                key=lambda i: (query_counts[i], i)
+            )
+
+            del remaining[graph_to_remove]
+            removed.append(graph_to_remove)
+            
+            # Assign score based on order of survival (later removal = higher score)
+            self.graph_scores[graph_to_remove] = float(removal_step)
+            removal_step -= 1
+
+        # Assign highest scores to the final retained graphs so they stay at the top
+        for i in remaining.keys():
+            self.graph_scores[i] = float(removal_step)
+            removal_step -= 1
+
+        return self.graph_scores
+    
 class RecallGreedyReducer(Reducer):
     """
     Iteratively removes the graph whose removal maximizes
