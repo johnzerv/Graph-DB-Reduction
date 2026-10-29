@@ -66,12 +66,12 @@ class QueryEngine:
                 destination = parts[i+2]
                 match_found = False
                 
-                # 1. Check against edges (where destination is another integer node)
+                # Check against edges (where destination is another integer node)
                 if destination.isdigit():
                     if (src, predicate, int(destination)) in graph.edges:
                         match_found = True
                 
-                # 2. Check against attributes (where destination is a string value --> attribute value)
+                # Check against attributes (where destination is a string value --> attribute value)
                 if not match_found and (src, predicate, destination) in graph.attributes:
                     match_found = True
                     

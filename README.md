@@ -1,4 +1,4 @@
-# Graph Query Project
+# Graph Datatabase Reduction Project
 
 This project investigates graph database reduction techniques to improve query processing efficiency while preserving relevant results. It generates synthetic graph datasets and query logs to evaluate query matching, and different reduction methods based on recall evaluation.
 
