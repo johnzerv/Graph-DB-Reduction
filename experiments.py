@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from graph import GraphDB
 from query_engine import QueryEngine
-from reducer import BaselineScoreReducer, RarityScoreReducer, OverlapParticipationRatioReducer, RecallGreedyReducer
+from reducer import BaselineScoreReducer, RarityScoreReducer, OverlapParticipationRatioReducer
 from evaluator import Evaluator
 
 METRICS = ["full_macro", "full_micro", "partial_macro", "partial_micro"]
@@ -62,38 +62,38 @@ class ExperimentRunner:
         kept = {g_idx for g_idx, _ in ranked[:k]}
         return self._evaluate(full, partial, kept)
 
-    def _run_recall_greedy(self, graph_db, full, partial, budget) -> dict[str, float]:
-        """Runner for the iterative greedy reduction method."""
-        reducer = RecallGreedyReducer(
-            graphDB=graph_db,
-            retain_percentage=budget,
-            metric="macro",
-            match_type="FULL",
-        )
-        reduced_db = reducer.reduce(answers_original_by_query=full)
-        _, query_full_matches, query_partial_matches, _, _ = QueryEngine(
-            reduced_db,
-            log_filepath=graph_db.log_file,
-        ).run()
+    # def _run_recall_greedy(self, graph_db, full, partial, budget) -> dict[str, float]:
+    #     """Runner for the iterative greedy reduction method."""
+    #     reducer = RecallGreedyReducer(
+    #         graphDB=graph_db,
+    #         retain_percentage=budget,
+    #         metric="macro",
+    #         match_type="FULL",
+    #     )
+    #     reduced_db = reducer.reduce(answers_original_by_query=full)
+    #     _, query_full_matches, query_partial_matches, _, _ = QueryEngine(
+    #         reduced_db,
+    #         log_filepath=graph_db.log_file,
+    #     ).run()
 
-        # Map reduced indices back to original graph indices
-        query_full_matches = {
-            query: [reducer.retained_graph_indices[i] for i in graph_ids]
-            for query, graph_ids in query_full_matches.items()
-        }
-        query_partial_matches = {
-            query: [reducer.retained_graph_indices[i] for i in graph_ids]
-            for query, graph_ids in query_partial_matches.items()
-        }
+    #     # Map reduced indices back to original graph indices
+    #     query_full_matches = {
+    #         query: [reducer.retained_graph_indices[i] for i in graph_ids]
+    #         for query, graph_ids in query_full_matches.items()
+    #     }
+    #     query_partial_matches = {
+    #         query: [reducer.retained_graph_indices[i] for i in graph_ids]
+    #         for query, graph_ids in query_partial_matches.items()
+    #     }
         
-        full_result = self.evaluator.evaluate(full, query_full_matches)
-        partial_result = self.evaluator.evaluate(partial, query_partial_matches)
-        return {
-            "full_macro": full_result["macro"],
-            "full_micro": full_result["micro"],
-            "partial_macro": partial_result["macro"],
-            "partial_micro": partial_result["micro"],
-        }
+    #     full_result = self.evaluator.evaluate(full, query_full_matches)
+    #     partial_result = self.evaluator.evaluate(partial, query_partial_matches)
+    #     return {
+    #         "full_macro": full_result["macro"],
+    #         "full_micro": full_result["micro"],
+    #         "partial_macro": partial_result["macro"],
+    #         "partial_micro": partial_result["micro"],
+    #     }
 
     def run_mode(self, mode: str) -> list[dict[str, float]]:
         graphDB = GraphDB(
@@ -162,42 +162,58 @@ class ExperimentRunner:
 
     @staticmethod
     def plot_results(rows, config: ExperimentConfig):
+        methods = list(dict.fromkeys(row["method"] for row in rows))  # keeps insertion order
+        colors = plt.get_cmap("tab10").colors
+        markers = ["o", "s", "^", "D", "v", "P"]
+        linestyles = ["-", "--", "-.", (0, (5, 1)), (0, (3, 1, 1, 1)), ":"]
         styles = {
-            "baseline": dict(color="#2a78d6", marker="o", markersize=6, linewidth=2),
-            "rarity": dict(color="#eb6834", marker="s", markersize=6, linewidth=2),
-            "overlap_participation": dict(color="#2a9d8f", marker="^", markersize=6, linewidth=2),
+            m: dict(color=colors[i % len(colors)], marker=markers[i % len(markers)],
+                    linestyle=linestyles[i % len(linestyles)], markersize=6, linewidth=2)
+            for i, m in enumerate(methods)
         }
-        titles = {
-            "full_macro": "Full matches: macro recall",
-            "full_micro": "Full matches: micro recall",
-            "partial_macro": "Partial matches: macro recall",
-            "partial_micro": "Partial matches: micro recall"
+        col_titles = {
+            "full_macro": "Full matches\nmacro recall",
+            "full_micro": "Full matches\nmicro recall",
+            "partial_macro": "Partial matches\nmacro recall",
+            "partial_micro": "Partial matches\nmicro recall",
         }
-        fig, axes = plt.subplots(len(METRICS), len(config.modes), figsize=(5.5 * len(config.modes), 3.4 * len(METRICS)),
+
+        n_rows, n_cols = len(config.modes), len(METRICS)
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(3.4 * n_cols, 3.2 * n_rows),
                                  sharex=True, sharey=True, squeeze=False)
-        for col, mode in enumerate(config.modes):
-            for r, metric in enumerate(METRICS):
-                ax = axes[r][col]
-                for name, style in styles.items():
-                    pts = [(row["B"], row[metric]) for row in rows if row["query distribution"] == mode and row["method"] == name]
-                    ax.plot([p[0] for p in pts], [p[1] for p in pts], label=name, **style)
-                ax.set_title(f"{mode} distribution - {titles[metric]}", fontsize=10, color="#333333")
+
+        for r, mode in enumerate(config.modes):
+            for c, metric in enumerate(METRICS):
+                ax = axes[r][c]
+                # Reference: keeping a random fraction B of graphs gives ~B recall
+                ax.plot([0, 1], [0, 1], color="#999999", linestyle=":", linewidth=1.2,
+                        label="random (recall ~ B)", zorder=1)
+                for name in methods:
+                    pts = sorted((row["B"], row[metric]) for row in rows
+                                 if row["query distribution"] == mode and row["method"] == name)
+                    ax.plot([p[0] for p in pts], [p[1] for p in pts], label=name, zorder=2, **styles[name])
+
+                ax.set_xlim(0, 1)
                 ax.set_ylim(0, 1.02)
                 ax.set_xticks(config.budgets)
+                ax.set_xticklabels([f"{int(round(b * 100))}%" for b in config.budgets])
                 ax.grid(True, color="#e6e6e3", linewidth=0.8)
                 ax.spines[["top", "right"]].set_visible(False)
                 ax.tick_params(colors="#555555", labelsize=9)
-                if r == len(METRICS) - 1:
-                    ax.set_xlabel("B (fraction of graphs kept)", color="#555555")
-                if col == 0:
-                    ax.set_ylabel("recall", color="#555555")
+
+                if r == 0:
+                    ax.set_title(col_titles[metric], fontsize=10, color="#333333")
+                if c == 0:
+                    ax.set_ylabel(f"{mode} distribution\n\nrecall", color="#555555")
+                if r == n_rows - 1:
+                    ax.set_xlabel("B (graphs kept)", color="#555555")
+
         handles, labels = axes[0][0].get_legend_handles_labels()
         fig.legend(handles, labels, loc="upper center", ncol=len(labels), frameon=False)
-        fig.tight_layout(rect=(0, 0, 1, 0.97))
+        fig.tight_layout(rect=(0, 0, 1, 0.94))
         png_path = config.out_dir / f"{config.file_stem}.png"
         fig.savefig(png_path, dpi=150)
         print(f"\nSaved {config.out_dir / f'{config.file_stem}.csv'} and {png_path}")
-
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Compare baseline and rarity reduction.")
