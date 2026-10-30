@@ -106,14 +106,14 @@ class RarityScoreReducer(ScoreReducer):
 class OverlapParticipationRatioReducer(ScoreReducer):
     """
     A scoring system that ranks graphs based on two factors: (1) their overlap with 
-    other graphs in terms of query answers,and (2) their participation in the overall query set.
+    other graphs in terms of query answers, and (2) their participation in the overall query set.
 
     Intuition: A graph that answers many queries but whose answers are largely covered by other
     graphs is less valuable than a graph that answers queries with unique answers.
 
-    Removes graphs with no FULL or PARTIAL query matches first as the algorithm cannot provide overlap scores for these graphs.
-    It then iteratively removes the graph whose maximizes the ratio between its overlap with other graphs and its participation
-    in the query set, using weighted scores in order to take into account both FULL and PARTIAL matches.
+    Graphs with no FULL or PARTIAL matches are removed first. It then iteratively removes the
+    graph that maximizes the ratio between its overlap with other graphs and its participation
+    in the query set, using weighted scores to account for both FULL and PARTIAL matches.
     """
     def __init__(self, graphDB: GraphDB, **kwargs):
         super().__init__(graphDB, **kwargs)
@@ -121,11 +121,9 @@ class OverlapParticipationRatioReducer(ScoreReducer):
 
     def calculate_scores(self, full_matches_by_graph, partial_matches_by_graph):
         """
-        Calculates scores/order of removal by simulating the iterative 
-        removal process based on overlap-to-query ratios.
+        Calculates scores by simulating the full iterative removal process
+        based on overlap-to-participation ratios.
         """
-        num_graphs_to_keep = max(1, int(self.num_graphs * self.retain_percentage))
-
         FULL_WEIGHT = 2
         PARTIAL_WEIGHT = 1
 
@@ -139,21 +137,20 @@ class OverlapParticipationRatioReducer(ScoreReducer):
 
         removed = []
 
-        removal_step = self.num_graphs
+        # Score = position in the removal order. First removed gets 0 (less important graph),
+        # last removed (most important graph) gets the highest score.
+        removal_rank = 0
 
-        # Remove graphs with empty query answer sets
+        # Remove graphs with empty query answer sets first
         for i in list(remaining.keys()):
-            if len(remaining) <= num_graphs_to_keep:
-                break
-
             if not remaining[i]["FULL"] and not remaining[i]["PARTIAL"]:
                 del remaining[i]
                 removed.append(i)
-                self.graph_scores[i] = 0.0  # Lowest score
-                removal_step -= 1
+                self.graph_scores[i] = float(removal_rank)
+                removal_rank += 1
 
-        # Iteratively calulate weighted overlap-participation ratios.
-        while len(remaining) > num_graphs_to_keep:
+        # Iteratively calculate weighted overlap-participation ratios.
+        while remaining:
             overlap_scores = {}
 
             for i, matches_i in remaining.items():
@@ -189,7 +186,6 @@ class OverlapParticipationRatioReducer(ScoreReducer):
             overlap_ratios = {
                 i: overlap_scores[i] / query_counts[i]
                 for i in remaining
-                if query_counts[i] > 0
             }
 
             max_ratio = max(overlap_ratios.values())
@@ -207,149 +203,8 @@ class OverlapParticipationRatioReducer(ScoreReducer):
 
             del remaining[graph_to_remove]
             removed.append(graph_to_remove)
-            
-            # Assign score based on order of survival (later removal = higher score)
-            self.graph_scores[graph_to_remove] = float(removal_step)
-            removal_step -= 1
 
-        # Assign highest scores to the final retained graphs so they stay at the top
-        for i in remaining.keys():
-            self.graph_scores[i] = float(removal_step)
-            removal_step -= 1
+            self.graph_scores[graph_to_remove] = float(removal_rank)
+            removal_rank += 1
 
         return self.graph_scores
-    
-class RecallGreedyReducer(Reducer):
-    """
-    Iteratively removes the graph whose removal maximizes
-    the selected recall metric.
-
-    metric: "macro" or "micro"
-    match_type: "FULL" or "PARTIAL"
-    """
-
-    def __init__(
-        self,
-        graphDB: GraphDB,
-        metric="macro",
-        match_type="FULL",
-        **kwargs
-    ):
-        super().__init__(graphDB, **kwargs)
-
-        if metric not in {"macro", "micro"}:
-            raise ValueError("metric must be 'macro' or 'micro'")
-
-        if match_type not in {"FULL", "PARTIAL"}:
-            raise ValueError("match_type must be 'FULL' or 'PARTIAL'")
-
-        self.metric = metric
-        self.match_type = match_type
-        self.retained_graph_indices = list(range(self.num_graphs))
-
-    def reduce(self, answers_original_by_query, **kwargs):
-        from query_engine import QueryEngine
-        from evaluator import Evaluator
-
-        evaluator = Evaluator()
-
-        num_graphs_to_keep = max(
-            1, int(self.num_graphs * self.retain_percentage)
-        )
-
-        remaining = list(range(self.num_graphs))
-        removed = []
-
-        def calculate_recall(graph_indices):
-            # Create the candidate reduced database.
-            candidate_db = self.graphDB.reduce(graph_indices)
-
-            # Run the original query log on this candidate.
-            engine = QueryEngine(
-                candidate_db,
-                log_filepath=self.graphDB.log_file
-            )
-
-            _, full_matches, partial_matches, _, _ = engine.run()
-
-            # GraphDB assigns local indices when loading a reduced database.
-            # Convert them back to the original database indices for recall.
-            full_matches = {
-                query: [graph_indices[i] for i in graph_ids]
-                for query, graph_ids in full_matches.items()
-            }
-            partial_matches = {
-                query: [graph_indices[i] for i in graph_ids]
-                for query, graph_ids in partial_matches.items()
-            }
-
-            # Select the kind of answers we want to preserve.
-            if self.match_type == "FULL":
-                answers_reduced = full_matches
-            else:
-                answers_reduced = partial_matches
-
-            result = evaluator.evaluate(
-                answers_original_by_query,
-                answers_reduced
-            )
-
-            return result[self.metric]
-
-        current_recall = calculate_recall(remaining)
-
-        print(
-            f"Initial {self.match_type} {self.metric} recall: "
-            f"{current_recall:.4f}"
-        )
-
-        while len(remaining) > num_graphs_to_keep:
-            best_graph = None
-            best_recall = float("-inf")
-
-            # Try removing every remaining graph.
-            for graph_idx in remaining:
-                candidate_indices = [
-                    i for i in remaining if i != graph_idx
-                ]
-
-                candidate_recall = calculate_recall(candidate_indices)
-
-                # Choose the removal that preserves the most recall.
-                if (
-                    candidate_recall > best_recall
-                    or (
-                        candidate_recall == best_recall
-                        and (
-                            best_graph is None
-                            or graph_idx < best_graph
-                        )
-                    )
-                ):
-                    best_graph = graph_idx
-                    best_recall = candidate_recall
-
-            remaining.remove(best_graph)
-            removed.append(best_graph)
-            current_recall = best_recall
-
-            print(
-                f"Removed graph {best_graph} | "
-                f"{self.match_type} {self.metric} recall: "
-                f"{current_recall:.4f} | "
-                f"Remaining: {len(remaining)}"
-            )
-
-        print("\n--- RECALL GREEDY REDUCTION ---")
-        print(f"Metric: {self.metric}")
-        print(f"Match type: {self.match_type}")
-        print(
-            f"Target keep percentage: "
-            f"{self.retain_percentage * 100:.1f}%"
-        )
-        print(f"Retained graphs: {remaining}")
-        print(f"Removed graphs: {removed}")
-        print(f"Final recall: {current_recall:.4f}")
-
-        self.retained_graph_indices = remaining
-        return self.graphDB.reduce(remaining)

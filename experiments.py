@@ -166,7 +166,6 @@ class ExperimentRunner:
             "baseline": dict(color="#2a78d6", marker="o", markersize=6, linewidth=2),
             "rarity": dict(color="#eb6834", marker="s", markersize=6, linewidth=2),
             "overlap_participation": dict(color="#2a9d8f", marker="^", markersize=6, linewidth=2),
-            # "recall-greedy": dict(color="#2a9d8f", marker="^", markersize=6, linewidth=2),
         }
         titles = {
             "full_macro": "Full matches: macro recall",
