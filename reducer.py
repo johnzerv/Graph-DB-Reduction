@@ -270,7 +270,7 @@ class RecallGreedyReducer(Reducer):
                 log_filepath=self.graphDB.log_file
             )
 
-            _, full_matches, partial_matches = engine.run()
+            _, full_matches, partial_matches, _, _ = engine.run()
 
             # GraphDB assigns local indices when loading a reduced database.
             # Convert them back to the original database indices for recall.
