@@ -10,6 +10,8 @@ This project investigates graph database reduction techniques to improve query p
 - `evaluator.py` calculates per-query, macro, and micro average recall after a graph database reduction.
 - `visualizers.py` creates interactive PyVis HTML views and Matplotlib graph views.
 - `main.py` runs the graph evaluation, ranking, reduction, visualization, and recall reporting flow.
+- `experiments.py` compares the reduction methods for several values of B and saves a table and charts in `results/`.
+- `spark_reducer.py` the Apache Spark version of the reduction (baseline and rarity). See [Run the Spark version](#run-the-spark-version).
 - `datasets/` contains generated datasets; `visualizations/` contains HTML output.
 - `requirements.txt` lists the Python dependencies; `Makefile` provides a cleanup target.
 
@@ -93,6 +95,66 @@ python graph.py -v python
 
 Enter a graph number when prompted, or `q` to quit. HTML output is written to `visualizations/`.
 
+### Run the Spark version
+
+`spark_reducer.py` does the same reduction as the Python code, with Apache Spark.
+
+#### One-time setup
+
+Spark needs **Java 17** and **Python 3.12**, in a separate environment `.venv-spark`.
+
+Windows (PowerShell):
+
+1. Install any Java 17 (JDK) and set the `JAVA_HOME` environment variable to its folder.
+2. Install Python 3.12: `winget install Python.Python.3.12`
+3. Restart VS Code / the terminal, then:
+
+```powershell
+py -3.12 -m venv .venv-spark
+.venv-spark\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install pyspark matplotlib networkx pyvis
+```
+
+macOS (Terminal, with [Homebrew](https://brew.sh)):
+
+```sh
+brew install openjdk@17 python@3.12
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)   # add this line to ~/.zshrc to keep it
+python3.12 -m venv .venv-spark
+source .venv-spark/bin/activate
+python -m pip install --upgrade pip
+pip install pyspark matplotlib networkx pyvis
+```
+
+If `/usr/libexec/java_home -v 17` finds nothing, run once: `sudo ln -sfn $(brew --prefix)/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk`
+
+Test that Spark works (should print `Spark OK: 5`):
+
+```sh
+python -c "from pyspark.sql import SparkSession; s=SparkSession.builder.master('local[*]').getOrCreate(); print('Spark OK:', s.range(5).count()); s.stop()"
+```
+
+#### Run it
+
+Activate `.venv-spark` first, then:
+
+```sh
+python spark_reducer.py <Database.txt> <QLog.txt> <B> [--method rarity|baseline] [--master "local[4]"]
+```
+
+| Input | Meaning |
+|---|---|
+| `<Database.txt>` | the graph database (one graph per line) |
+| `<QLog.txt>` | the query log (one query per line) |
+| `<B>` | fraction of graphs to keep, e.g. `0.3` = 30% |
+| `--method` | `rarity` (default) or `baseline` |
+| `--alpha` | rarity only: weight of a partial match (default `0.5`) |
+| `--master` | number of workers: `local[4]` = 4 cores, `local[*]` = all cores (default) |
+| `--out` | where to save the reduced database (default: `results/`) |
+
+On Windows, the `winutils.exe` warnings and the `could not be terminated` errors at the end are harmless.
+
 ### Clean generated data
 
 ```sh
@@ -105,4 +167,4 @@ This removes the `datasets/` and `visualizations/` directory contents (graph dat
 1. Work queries (paths) that include variables (e.g., X.knows.Y). This should also increase partial matches. We need to understand how we can modelize graphs with such queries.
 2. Create the deliverable dataset. Maybe one more distribution?
 3. Implement other than only the baseline reduction strategies.
-4. Move to PySpark.
+4. ~~Move to PySpark.~~ Done for baseline and rarity (`spark_reducer.py`).
