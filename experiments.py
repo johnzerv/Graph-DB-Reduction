@@ -1,8 +1,8 @@
-"""Compare the baseline and rarity methods for several budgets (B) and query logs.
+"""Compare the baseline, rarity and overlap-participation methods for several budgets (B) and query logs.
 
 Outputs (in results):
     compare_G<group>_<graphs>_<queries>.csv   one row per (log, method, B)
-    compare_G<group>_<graphs>_<queries>.png   recall vs B charts
+    compare_G<group>_<graphs>_<queries>.png   retention vs B charts
 """
 import argparse
 import contextlib
@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from graph import GraphDB
 from query_engine import QueryEngine
 from reducer import BaselineScoreReducer, RarityScoreReducer, OverlapParticipationRatioReducer
-from evaluator import Evaluator
+from evaluator import RetentionEvaluator
 
 METRICS = ["full_macro", "full_micro", "partial_macro", "partial_micro"]
 
@@ -39,7 +39,7 @@ class ExperimentConfig:
 class ExperimentRunner:
     def __init__(self, config: ExperimentConfig):
         self.config = config
-        self.evaluator = Evaluator()
+        self.evaluator = RetentionEvaluator()
 
     def _restrict(self, answers_by_query: dict[str, list[int]], kept: set[int]) -> dict[str, list[int]]:
         """Answers on the reduced database = original answers from the kept graphs."""
@@ -172,10 +172,10 @@ class ExperimentRunner:
             for i, m in enumerate(methods)
         }
         col_titles = {
-            "full_macro": "Full matches\nmacro recall",
-            "full_micro": "Full matches\nmicro recall",
-            "partial_macro": "Partial matches\nmacro recall",
-            "partial_micro": "Partial matches\nmicro recall",
+            "full_macro": "Full matches\nmacro retention",
+            "full_micro": "Full matches\nmicro retention",
+            "partial_macro": "Partial matches\nmacro retention",
+            "partial_micro": "Partial matches\nmicro retention",
         }
 
         n_rows, n_cols = len(config.modes), len(METRICS)
@@ -185,9 +185,9 @@ class ExperimentRunner:
         for r, mode in enumerate(config.modes):
             for c, metric in enumerate(METRICS):
                 ax = axes[r][c]
-                # Reference: keeping a random fraction B of graphs gives ~B recall
+                # Reference: keeping a random fraction B of graphs gives ~B retention
                 ax.plot([0, 1], [0, 1], color="#999999", linestyle=":", linewidth=1.2,
-                        label="random (recall ~ B)", zorder=1)
+                        label="random (retention ~ B)", zorder=1)
                 for name in methods:
                     pts = sorted((row["B"], row[metric]) for row in rows
                                  if row["query distribution"] == mode and row["method"] == name)
@@ -204,7 +204,7 @@ class ExperimentRunner:
                 if r == 0:
                     ax.set_title(col_titles[metric], fontsize=10, color="#333333")
                 if c == 0:
-                    ax.set_ylabel(f"{mode} distribution\n\nrecall", color="#555555")
+                    ax.set_ylabel(f"{mode} distribution\n\nretention", color="#555555")
                 if r == n_rows - 1:
                     ax.set_xlabel("B (graphs kept)", color="#555555")
 
@@ -216,7 +216,7 @@ class ExperimentRunner:
         print(f"\nSaved {config.out_dir / f'{config.file_stem}.csv'} and {png_path}")
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Compare baseline and rarity reduction.")
+    parser = argparse.ArgumentParser(description="Compare baseline, rarity and overlap-participation reduction.")
     parser.add_argument("-n", "--num-graphs", type=int, default=2000, help="number of graphs in the database (default: 2000)")
     parser.add_argument("-q", "--num-queries", type=int, default=1000, help="number of queries in the query log (default: 1000)")
     parser.add_argument("--group-number", default="13", help="group number used in filenames (default: 13)")
