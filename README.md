@@ -168,3 +168,60 @@ This removes the `datasets/` and `visualizations/` directory contents (graph dat
 2. Create the deliverable dataset. Maybe one more distribution?
 3. Implement other than only the baseline reduction strategies.
 4. ~~Move to PySpark.~~ Done for baseline and rarity (`spark_reducer.py`).
+
+
+## Experiments
+
+The `experiments.py` script evaluates the Spark graph-database reduction using two types of experiments.
+
+### Experiment 1: Retention Quality
+
+Fixes the database and varies the retention budget (`B`) and the scoring parameter (`alpha`) to evaluate reduction quality.
+
+- **Single query log:** Runs the experiment using one query log.
+- **Two query logs:** Runs the experiment separately for each query log and generates a comparison of the results. This is for our two kind of distributions: uniform and skewed.
+
+### Experiment 2: Quality and Execution Time
+
+Evaluates the reduction across multiple databases and query logs using a fixed retention budget (`B`) and scoring parameter (`alpha`). The experiment measures both reduction quality and execution time. Multiple repetitions can be specified to improve the reliability of the results.
+
+### Matching Optimization
+
+Query matching is independent of the retention budget (`B`) and scoring parameter (`alpha`). Therefore, matching is performed only once for each database–query-log pair, and the results are reused across all configurations.
+
+### Usage
+
+Run Experiment 1 with a single query log:
+
+```bash
+python experiments.py --exp 1 --database db1.txt --qlogs q1.log
+```
+
+Run Experiment 1 with two query logs:
+
+```bash
+python experiments.py --exp 1 --database db1.txt --qlogs uniform.log skewed.log
+```
+
+Specify custom names for the query logs:
+
+```bash
+python experiments.py --exp 1 --database db1.txt \
+    --qlogs u.log s.log --qlog-names uniform skewed
+```
+
+Run Experiment 2 with multiple datasets:
+
+```bash
+python experiments.py --exp 2 --budget 0.5 --alpha 0.5 --repeats 3 \
+    --dataset small db_s.txt q_s.log \
+    --dataset medium db_m.txt q_m.log \
+    --dataset large db_l.txt q_l.log \
+    --dataset xl db_xl.txt q_xl.log
+```
+
+For additional configuration options, run:
+
+```bash
+python experiments.py --help
+```
