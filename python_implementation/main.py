@@ -2,10 +2,10 @@ import argparse
 from pathlib import Path
 
 from graph import Graph, GraphDB
-from query_engine import QueryEngine
-from reducer import BaselineReducer, RarityReducer
-from visualizers import visualize_query_graph_relations
-from evaluator import Evaluator
+from python_implementation.query_engine import QueryEngine
+from python_implementation.reducer import BaselineReducer, RarityReducer
+from python_implementation.visualizers import visualize_query_graph_relations
+from python_implementation.evaluator import Evaluator
 
 
 def print_recall_summary(title, result):

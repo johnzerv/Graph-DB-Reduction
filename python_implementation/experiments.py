@@ -14,9 +14,9 @@ from typing import List
 import matplotlib.pyplot as plt
 
 from graph import GraphDB
-from query_engine import QueryEngine
-from reducer import BaselineScoreReducer, RarityScoreReducer, OverlapParticipationRatioReducer
-from evaluator import RetentionEvaluator
+from python_implementation.query_engine import QueryEngine
+from python_implementation.reducer import BaselineScoreReducer, RarityScoreReducer, OverlapParticipationRatioReducer
+from python_implementation.evaluator import RetentionEvaluator
 
 METRICS = ["full_macro", "full_micro", "partial_macro", "partial_micro"]
 
