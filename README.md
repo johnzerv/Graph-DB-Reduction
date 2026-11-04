@@ -197,7 +197,7 @@ Run Experiment 1 with a single query log:
 python experiments.py --exp 1 --database db1.txt --qlogs q1.log
 ```
 
-Run Experiment 1 with two query logs:
+Run Experiment 1 with two query logs (e.g., uniform and skewed):
 
 ```bash
 python experiments.py --exp 1 --database db1.txt --qlogs uniform.log skewed.log
@@ -210,6 +210,13 @@ python experiments.py --exp 1 --database db1.txt \
     --qlogs u.log s.log --qlog-names uniform skewed
 ```
 
+Specify custom budgets and alpha values for Experiment 1:
+
+```bash
+python experiments.py --exp 1 --database db1.txt --qlogs q1.log \
+    --budgets 0.2 0.4 0.6 0.8 --alphas 0.0 0.5 1.0
+```
+
 Run Experiment 2 with multiple datasets:
 
 ```bash
@@ -219,6 +226,8 @@ python experiments.py --exp 2 --budget 0.5 --alpha 0.5 --repeats 3 \
     --dataset large db_l.txt q_l.log \
     --dataset xl db_xl.txt q_xl.log
 ```
+
+All experiment results (CSV files and plots) are saved in `results/experiments` by default. Use `--out-dir` to specify a different output directory.
 
 For additional configuration options, run:
 
