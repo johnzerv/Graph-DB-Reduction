@@ -4,3 +4,4 @@ lib/
 datasets/*
 results/*
 reducer_trials.py
+spark_initial_implementation.py

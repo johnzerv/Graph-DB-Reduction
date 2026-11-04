@@ -324,12 +324,12 @@ def plot_compare_exp1(rows_a, rows_b, labels, path):
     method_handles = [Line2D([0], [0], color=colors[s],
                              label=f"rarity a={s[1]}" if s[0] == "rarity" else "baseline")
                       for s in all_series]
-    log_handles = [Line2D([0], [0], color="gray", linestyle=ls, marker=mk, label=lab)
+    log_handles = [Line2D([0], [0], color="gray", linestyle=ls, marker=mk, label=lab, linewidth=2.5)
                    for (ls, mk), lab in zip(styles, labels)]
     fig.legend(handles=method_handles + log_handles, loc="lower center",
-               ncol=len(method_handles) + 2, fontsize=8)
-    fig.suptitle(f"Query log comparison: {labels[0]} (solid) vs {labels[1]} (dotted)")
-    fig.tight_layout(rect=(0, 0.05, 1, 0.97))
+               ncol=len(method_handles) + 2, fontsize=14)
+    fig.suptitle(f"Query log comparison: {labels[0]} versus {labels[1]}")
+    fig.tight_layout(rect=(0, 0.10, 1, 0.97))
     fig.savefig(path, dpi=150)
     plt.close(fig)
     print(f"Saved {path}")
