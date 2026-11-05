@@ -241,29 +241,55 @@ class SparkExperimentRunner:
 
 # Plotting methods
 def plot_exp1(rows, path, title=None):
-    fig, axes = plt.subplots(2, 2, figsize=(11, 8), sharex=True)
+    all_series = series_of(rows)
+    palette = plt.get_cmap("tab10")
+    colors = {}
+    for i, s in enumerate(all_series):
+        colors[s] = "black" if s[0] == "baseline" else palette(i % 10)
+
+    # Matched figsize with plot_compare_exp1
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8.5), sharex=True)
     panels = [("full_macro", "FULL - macro"), ("full_micro", "FULL - micro"),
               ("partial_macro", "PARTIAL - macro"), ("partial_micro", "PARTIAL - micro")]
+              
     for ax, (key, panel_title) in zip(axes.flat, panels):
-        for method, alpha in series_of(rows):
+        for s in all_series:
+            method, alpha = s
             pts = sorted((r["budget"], r[key]) for r in rows
-                         if r["method"] == method and r["alpha"] == alpha)
+                         if (r["method"], r["alpha"]) == s)
             label = f"rarity a={alpha}" if method == "rarity" else "baseline"
             ax.plot(*zip(*pts), marker="o", linestyle="--" if method == "baseline" else "-",
-                    color="black" if method == "baseline" else None, label=label)
+                    color=colors[s], label=label)
         ax.set_title(panel_title)
         ax.set_ylabel("retention")
         ax.grid(alpha=0.3)
+        
     for ax in axes[1]:
         ax.set_xlabel("budget B")
-    axes[0][0].legend(fontsize=8)
+
+    # Create figure-level legend handles exactly like plot_compare_exp1
+    method_handles = [Line2D([0], [0], color=colors[s], marker="o",
+                             linestyle="--" if s[0] == "baseline" else "-",
+                             label=f"rarity a={s[1]}" if s[0] == "rarity" else "baseline")
+                      for s in all_series]
+                      
+    log_handles = []
+    if title:
+        # Include a grey handle denoting the single query log for total parity
+        log_handles = [Line2D([0], [0], color="gray", linestyle="-", marker="o", label=title, linewidth=2.5)]
+
+    # Draw unified legend at the bottom center
+    fig.legend(handles=method_handles + log_handles, loc="lower center",
+               ncol=len(method_handles) + len(log_handles), fontsize=14)
+               
     if title:
         fig.suptitle(f"Query log: {title}")
-    fig.tight_layout()
+        
+    # Adjust layout to make room for the bottom legend
+    fig.tight_layout(rect=(0, 0.10, 1, 0.97))
     fig.savefig(path, dpi=150)
     plt.close(fig)
     print(f"Saved {path}")
-
 
 def compare_exp1(rows_a, rows_b, labels, out_dir):
     """Compare the two query logs: side-by-side CSV, console summary, overlay plot."""
@@ -328,7 +354,7 @@ def plot_compare_exp1(rows_a, rows_b, labels, path):
                    for (ls, mk), lab in zip(styles, labels)]
     fig.legend(handles=method_handles + log_handles, loc="lower center",
                ncol=len(method_handles) + 2, fontsize=14)
-    fig.suptitle(f"Query log comparison: {labels[0]} versus {labels[1]}")
+    # fig.suptitle(f"Query log comparison: {labels[0]} versus {labels[1]}")
     fig.tight_layout(rect=(0, 0.10, 1, 0.97))
     fig.savefig(path, dpi=150)
     plt.close(fig)
