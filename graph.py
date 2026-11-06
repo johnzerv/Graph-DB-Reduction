@@ -76,6 +76,9 @@ class GraphDB:
                         edges_raw.append((int(source), predicate, int(obj)))
                         nodes_set.add(int(obj))
                     else:
+                        # FIX: Enforce quotes for attributes if they are missing
+                        if not (obj.startswith('"') and obj.endswith('"')):
+                            obj = f'"{obj}"'
                         attrs_raw.append((int(source), predicate, obj))
 
                 self.graphs.append(Graph(
@@ -216,6 +219,9 @@ class GraphGenerator:
                     nodes_set.add(int(source))
                     
                     if predicate in self.attributes:
+                        # FIX: Enforce quotes for attributes if they are missing
+                        if not (obj.startswith('"') and obj.endswith('"')):
+                            obj = f'"{obj}"'
                         attrs_raw.append((int(source), predicate, obj))
                     elif predicate in self.edge_labels:
                         edges_raw.append((int(source), predicate, int(obj)))

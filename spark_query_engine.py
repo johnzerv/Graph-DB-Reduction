@@ -17,13 +17,24 @@ def parse_graph(line):
         src, label, obj = parts
         src = int(src)
         nodes.add(src)
-        if obj.isdigit():
+        
+        # If it explicitly has quotes, it's definitely an attribute
+        if obj.startswith('"') and obj.endswith('"'):
+            attrs.add((src, label, obj))
+            out_attrs.setdefault(src, []).append((label, obj))
+            
+        # If it has no quotes but is a digit, it's an edge (as per assignment rules)
+        elif obj.isdigit():
             edges.add((src, label, int(obj)))
             out_edges.setdefault(src, []).append((label, int(obj)))
             nodes.add(int(obj))
+            
+        # If it has no quotes and is NOT a digit, it's an unquoted string attribute
         else:
-            attrs.add((src, label, obj))
-            out_attrs.setdefault(src, []).append((label, obj))
+            fixed_obj = f'"{obj}"'
+            attrs.add((src, label, fixed_obj))
+            out_attrs.setdefault(src, []).append((label, fixed_obj))
+            
     return {
         "nodes": nodes,
         "edges": edges,
@@ -96,7 +107,7 @@ def _walk(graph, parts, index, bindings):
                     if destination in current_bindings and current_bindings[destination] != attribute_value:
                         continue
                     return True
-                elif destination == attribute_value:
+                elif destination == attribute_value or f'"{destination}"' == attribute_value:
                     return True
 
     return False
