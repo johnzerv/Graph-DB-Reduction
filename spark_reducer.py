@@ -27,7 +27,7 @@ class SparkReducer(ABC):
                    .cache())
         return kept_df
 
-class SparkBaselineReducer(SparkReducer):
+class SparkParticipationReducer(SparkReducer):
     def calculate_scores(self, matches_df):
         weighted = matches_df.withColumn("w", F.when(F.col("type") == "FULL", 2.0).otherwise(1.0))
         per_graph = weighted.groupBy("gid").agg(F.sum("w").alias("score"))

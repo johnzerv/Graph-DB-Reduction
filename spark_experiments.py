@@ -12,7 +12,7 @@ import pyspark
 from pyspark.sql import SparkSession
 
 from spark_query_engine import SparkQueryEngine
-from spark_reducer import SparkBaselineReducer, SparkRarityReducer
+from spark_reducer import SparkParticipationReducer, SparkRarityReducer
 from spark_evaluator import SparkRetentionEvaluator
 
 # Enviromental Setup
@@ -56,7 +56,7 @@ def qlog_labels(args):
     return labels
 
 def series_of(rows):
-    """Distinct (method, alpha) lines: rarity alphas first, baseline last."""
+    """Distinct (method, alpha) lines: rarity alphas first, participation last."""
     return sorted({(r["method"], r["alpha"]) for r in rows},
                   key=lambda s: (s[0] != "rarity", str(s[1])))
 
@@ -77,7 +77,7 @@ class SparkExperimentRunner:
         if method == "rarity":
             reducer = SparkRarityReducer(self.spark, num_graphs, retain_percentage=budget, alpha=alpha)
         else:
-            reducer = SparkBaselineReducer(self.spark, num_graphs, retain_percentage=budget)
+            reducer = SparkParticipationReducer(self.spark, num_graphs, retain_percentage=budget)
             
         reducer.calculate_scores(matches_df)
         kept_df = reducer.reduce()
@@ -104,7 +104,7 @@ class SparkExperimentRunner:
         print(f"Graphs: {engine.num_graphs} | Queries: {len(engine.queries)} | "
               f"Matches: {num_matches} | match time {match_time:.2f}s")
 
-        configs = [("rarity", a) for a in self.args.alphas] + [("baseline", None)]
+        configs = [("rarity", a) for a in self.args.alphas] + [("participation", None)]
         rows = []
         
         for method, alpha in configs:
@@ -115,7 +115,7 @@ class SparkExperimentRunner:
             if method == "rarity":
                 reducer = SparkRarityReducer(self.spark, engine.num_graphs, alpha=alpha_val)
             else:
-                reducer = SparkBaselineReducer(self.spark, engine.num_graphs)
+                reducer = SparkParticipationReducer(self.spark, engine.num_graphs)
                 
             scores_df = reducer.calculate_scores(matches_df).cache()
             scores_df.count() # Force Spark execution
@@ -172,7 +172,7 @@ class SparkExperimentRunner:
             compare_exp1(results[labels[0]], results[labels[1]], labels, self.out_dir)
 
     def run_experiment2(self):
-        methods = [("rarity", self.args.alpha), ("baseline", 0.5)]
+        methods = [("rarity", self.args.alpha), ("participation", 0.5)]
         rows = []
         
         for name, db, qlog in self.args.dataset:
@@ -245,7 +245,7 @@ def plot_exp1(rows, path, title=None):
     palette = plt.get_cmap("tab10")
     colors = {}
     for i, s in enumerate(all_series):
-        colors[s] = "black" if s[0] == "baseline" else palette(i % 10)
+        colors[s] = "black" if s[0] == "participation" else palette(i % 10)
 
     # Matched figsize with plot_compare_exp1
     fig, axes = plt.subplots(2, 2, figsize=(12, 8.5), sharex=True)
@@ -257,8 +257,8 @@ def plot_exp1(rows, path, title=None):
             method, alpha = s
             pts = sorted((r["budget"], r[key]) for r in rows
                          if (r["method"], r["alpha"]) == s)
-            label = f"rarity a={alpha}" if method == "rarity" else "baseline"
-            ax.plot(*zip(*pts), marker="o", linestyle="--" if method == "baseline" else "-",
+            label = f"rarity a={alpha}" if method == "rarity" else "participation"
+            ax.plot(*zip(*pts), marker="o", linestyle="--" if method == "participation" else "-",
                     color=colors[s], label=label)
         ax.set_title(panel_title)
         ax.set_ylabel("retention")
@@ -269,8 +269,8 @@ def plot_exp1(rows, path, title=None):
 
     # Create figure-level legend handles exactly like plot_compare_exp1
     method_handles = [Line2D([0], [0], color=colors[s], marker="o",
-                             linestyle="--" if s[0] == "baseline" else "-",
-                             label=f"rarity a={s[1]}" if s[0] == "rarity" else "baseline")
+                             linestyle="--" if s[0] == "participation" else "-",
+                             label=f"rarity a={s[1]}" if s[0] == "rarity" else "participation")
                       for s in all_series]
                       
     log_handles = []
@@ -330,7 +330,7 @@ def plot_compare_exp1(rows_a, rows_b, labels, path):
     palette = plt.get_cmap("tab10")
     colors = {}
     for i, s in enumerate(all_series):
-        colors[s] = "black" if s[0] == "baseline" else palette(i % 10)
+        colors[s] = "black" if s[0] == "participation" else palette(i % 10)
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 8.5), sharex=True)
     panels = [("full_macro", "FULL - macro"), ("full_micro", "FULL - micro"),
@@ -348,7 +348,7 @@ def plot_compare_exp1(rows_a, rows_b, labels, path):
         ax.set_xlabel("budget B")
 
     method_handles = [Line2D([0], [0], color=colors[s],
-                             label=f"rarity a={s[1]}" if s[0] == "rarity" else "baseline")
+                             label=f"rarity a={s[1]}" if s[0] == "rarity" else "participation")
                       for s in all_series]
     log_handles = [Line2D([0], [0], color="gray", linestyle=ls, marker=mk, label=lab, linewidth=2.5)
                    for (ls, mk), lab in zip(styles, labels)]
