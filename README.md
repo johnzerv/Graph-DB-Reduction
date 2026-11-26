@@ -160,3 +160,6 @@ The second experiment was performed by running the following command:
 ```sh
 make clean
 ```
+
+### Collaborators
+This project was a work of collaboration with [Evita Dologlou](https://github.com/evitadologlou) and [Zoi Dimitriou](https://github.com/zdimitriou).
