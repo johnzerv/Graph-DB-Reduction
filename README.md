@@ -162,4 +162,4 @@ make clean
 ```
 
 ### Collaborators
-This project was a work of collaboration with [Evita Dologlou](https://github.com/evitadologlou) and [Zoi Dimitriou](https://github.com/zdimitriou).
+This project was a work of collaboration with [Evita Dologlou](https://github.com/evitadologlou) and [Zoi Dimitriou](https://github.com/zdimitriou). For more information, one can read the report pdf.
